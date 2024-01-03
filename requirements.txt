@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+tortoise-orm[asyncpg]
+pydantic
+anyio
+jwt

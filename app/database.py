@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from tortoise import Tortoise
 from tortoise.contrib.fastapi import register_tortoise
 
-Tortoise.init_models(["models"], "models")
+Tortoise.init_models(["users.users_models"], "models")
 
 TORTOISE_ORM = {
     "connections": {
@@ -10,7 +10,7 @@ TORTOISE_ORM = {
     },
     "apps": {
         "models": {
-            "models": ["app.users.users_models, app.promocodes.promocodes_models"],
+            "models": ["users.users_models"],
             "default_connection": "default",
         },
     },
@@ -21,7 +21,7 @@ def init_db(app: FastAPI) -> None:
     register_tortoise(
         app,
         config=TORTOISE_ORM,
-        modules={"models": ["models"]},
+        modules={"models": ["users.users_models"]},
         generate_schemas=True,
         add_exception_handlers=True,
     )

@@ -3,4 +3,7 @@ uvicorn
 tortoise-orm[asyncpg]
 pydantic
 anyio
-jwt
+PyJWT
+python-decouple
+pytz
+tzlocal

@@ -1,46 +1,55 @@
-import time
-
 from fastapi import HTTPException, APIRouter
-from users_models import User
-from sms import send_sms,confirm_sms
+from app.users.users_models import User
+from app.users.sms import send_sms
 from app.auth.jwt_handler import generateJWT
-import datetime
+from app.promocodes.promocodes_models import PromoCodePercent
+from datetime import datetime,timezone,timedelta
+from tzlocal import get_localzone
+user_router = APIRouter()
 
-router = APIRouter()
-@router.get('/{number}')
+@user_router.get('/{number}')
 async def get_user(number : str):
-    user=await User.get(number=number)
+    user=await User.get(phone=number)
     if(user): return user
     raise HTTPException(status_code=404, detail=f"user with number {number} not found")
 
-@router.post('/login')
-async def send_sms(number : str):
-    result = await send_sms(number)
-    if(result): #update sms func
-        current_time = datetime.datetime.now() + datetime.timedelta(minutes=10)
-        await User.update_or_create(number=number,code=result,time_expires=current_time)
-        return #HTTPException(status_code=200)
-    raise HTTPException(status_code=404)
-@router.post('/cofirm')
-async def confirm_code(number : str, code : int):
-    user = await User.get(number=number)
-    if(user.code==code and user.time_expires>datetime.datetime.now()):
+@user_router.post('/promocodes/give')
+async def give_promocode(number : str, promocode_id : int):
+    user=await User.get(phone=number)
+    promocode = await PromoCodePercent.get(id=promocode_id)
+    if(user): return await user.promocodes.add(promocode)
+    raise HTTPException(status_code=404, detail=f"user with number {number} not found")
+
+@user_router.delete('/promocodes/remove')
+async def remove_promocode(number : str, promocode_id : int):
+    user=await User.get(phone=number)
+    if(user): return await user.promocodes.remove(id=promocode_id)
+    raise HTTPException(status_code=404, detail=f"user with number {number} not found")
+
+@user_router.post('/login')
+async def send_sms_to(number : str):
+    code = await send_sms()
+    if(code):
+        #в базе будет хранится локальное время с таймзоной но вернется в utc почему хз
+        time_expires = datetime.now(tz=get_localzone()) + timedelta(minutes=10)
+        return await User.create(phone=number,code=code,time_expires=time_expires)
+    raise HTTPException(status_code=500,detail="apparently code wasnt generated")
+
+@user_router.post('/cofirm')
+async def confirm_code(number : str, code : str):
+    user = await User.get(phone=number)
+    #сравниваем тоже в utc
+    if(user.code==code and datetime.now(timezone.utc)<user.time_expires):
         access = await generateJWT(number, 3600)
         refresh = await generateJWT(number, 2592000)
-        #promocodes = await User.promocodes
-        return {'number' : user.phone,
-               'email' : user.email,
-               'telegram' : user.telegram,
-               'bonuses' : user.bonuses,
-                'access' : access,
-                'refresh' : refresh}
-async def write_code(number : str, code: int):
-    current_time = datetime.datetime.now() + datetime.timedelta(minutes=10)
-    user = User.filter(number=number)
-    if(user): return await user.update(code=code, time_expires=current_time)
-    raise HTTPException(status_code=404, detail=f"User with number {number} not found")
-
-async def get_code(number: str):
-    user = await User.get(number=number)
-    if(user): return {'code': user.code, 'time_expires': user.time_expires}
-    raise HTTPException(status_code=404, detail=f"User with number {number} not found")
+        promocodes=await PromoCodePercent.filter(for_all=True)
+        for promocode in promocodes:
+            user.promocodes.add(promocode)
+        return {'number':user.phone,
+                'email':user.email,
+                'telegram':user.telegram,
+                'bonuses':user.bonuses,
+                'promocodes':user.promocodes,
+                'access':access,
+                'refresh':refresh}
+    raise HTTPException(status_code=500,detail="someone messed up")

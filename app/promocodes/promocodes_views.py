@@ -20,6 +20,3 @@ async def add_promocode(short_name: str, description : str, discount : float, fo
 async def delete_promocode(id : int):
     if(not (await PromoCodePercent.filter(id=id).delete())): raise HTTPException(status_code=404, detail=f'promocode {id} not found')
     return f"Promocode {id} deleted"
-
-@promocodes_router.get('/promocodes')
-async def viev_all_promocodes(): pass

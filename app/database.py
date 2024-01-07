@@ -6,7 +6,7 @@ model_paths = ["app.users.users_models","app.promocodes.promocodes_models"]
 
 TORTOISE_ORM = {
     "connections": {
-        "default": "postgres://postgres:1234@localhost:5432/test3",
+        "default": "postgres://postgres:1234@localhost:5432/test",
     },
     "apps": {
         "models": {

@@ -1,7 +1,11 @@
-from datetime import datetime,timezone,timedelta
-from tzlocal import get_localzone # $ pip install tzlocal
-import time
+import datetime
+from tzlocal import get_localzone
+from pytz import timezone
 
-start = datetime.now(tz=get_localzone())
-finish = start + timedelta(days=7)
-print(start,finish)
+timestamp = 1707229331.4954493
+
+# Convert the timestamp to a datetime object
+datetime_object1 = datetime.datetime.now().astimezone()
+datetime_object2 = datetime_object1.astimezone()
+
+print(datetime_object1,datetime_object2)

@@ -13,4 +13,5 @@ async def generateJWT(number: str, time_token_seconds : int):
 
 async def decodeJWT(token: bytes):
     decoded_token = jwt.decode(token, jwt_secret, algorithms=[jwt_algorithm])
-    return decoded_token if decoded_token["expires"] >= time.time() else None
+    return decoded_token
+    #if decoded_token["expires"] >= time.time() else None

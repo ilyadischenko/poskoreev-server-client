@@ -13,5 +13,6 @@ class User(Model):
     time_expires=fields.DatetimeField()
 
 class UserJWT(Model):
-    id=fields.ForeignKeyField('models.User',related_name='userJWT',pk=True,cascade=["CREATE"])
+    user=fields.ForeignKeyField('models.User',pk=True)
     refresh_code=fields.CharField(max_length=255)
+    is_active=fields.BooleanField()

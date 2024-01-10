@@ -1,20 +1,42 @@
-from fastapi import HTTPException, APIRouter
+from fastapi import HTTPException, APIRouter, Response, Request
 from app.users.users_models import User, UserJWT
 from app.users.sms import send_sms
-from app.auth.jwt_handler import generateJWT
+from app.auth.jwt_handler import generateJWT, decodeJWT
 from app.promocodes.promocodes_models import PromoCodePercent
-from datetime import datetime,timedelta
+from datetime import datetime,timedelta, timezone
 from tzlocal import get_localzone
+import time
 user_router = APIRouter()
 
-@user_router.get('/{number}')
-async def get_user(number : str):
-    user=await User.get(phone=number)
+@user_router.get('/user')
+async def get_user(request: Request, response: Response):
+    access=request.cookies.get("access")
+    if(not access) : raise HTTPException(status_code=401, detail="did u just delete cookie?")
+    check_access = await decodeJWT(access)
+    number = check_access["number"]
+    #if (check_access["number"] != number): raise HTTPException(status_code=401, detail="bruh")
+    if(not check_access):
+        refresh=await UserJWT.get(user_id=id)
+        if(refresh.refresh_code["expires"] >= time.time()): refresh.is_active=False
+        if (not refresh.is_active): raise HTTPException(status_code=401, detail="refresh isnt active")
+        new_access=await generateJWT(number, 3600)
+        response.set_cookie("access", new_access)
+    #if (not access): raise HTTPException(status_code=401, detail="Access Denied")
+    check_access = await decodeJWT(access)
+    number = check_access["number"]
+    if (check_access["number"] != number): raise HTTPException(status_code=401, detail="bruh")
+    if(not check_access):
+        refresh=await UserJWT.get(user_id_id=id)
+        if(refresh.refresh_code["expires"] >= time.time()): refresh.is_active=False
+        if (not refresh.is_active): raise HTTPException(status_code=401, detail="refresh isnt active")
+        new_access=await generateJWT(number, 3600)
+        response.set_cookie("access", new_access)
+    user = await User.get(phone=number)
+    if (not user): raise HTTPException(status_code=404, detail=f"user with number {number} not found")
     promocodes_set=await user.promocodes.all()
     promocodes=[]
     for i in promocodes_set:
         promocodes.append({'promocode' :i.short_name, 'discount': i.discount, 'expires at' : i.end.astimezone()})
-    if(not user): raise HTTPException(status_code=404, detail=f"user with number {number} not found")
     return {'number':user.phone,
             'email':user.email,
             'telegram':user.telegram,
@@ -54,17 +76,18 @@ async def delete_user(number: str):
     return f"user {number} deleted"
 
 @user_router.post('/cofirm')
-async def confirm_code(number : str, code : str):
+async def confirm_code(number : str, code : str, response : Response, request : Request):
     user = await User.get(phone=number)
     #конвертируем в локальную таймзону
-    if(datetime.now().astimezone()>user.time_expires.astimezone()): raise HTTPException(status_code=500, detail="TIMES UP! Better luck next time")
+    #if(datetime.now().astimezone()>user.time_expires.astimezone()): raise HTTPException(status_code=500, detail="TIMES UP! Better luck next time")
     #конвертируем в utc хз че лучше
-    #if(datetime.now(timezone.utc)>user.time_expires): raise HTTPException(status_code=500, detail="TIMES UP! Better luck next time")
+    if(datetime.now(timezone.utc)>user.time_expires): raise HTTPException(status_code=500, detail="TIMES UP! Better luck next time")
     if(user.code!=code): raise HTTPException(status_code=500, detail="code is incorrect")
     #время токенов в utc
-    #access = await generateJWT(number, 3600)
+    access = await generateJWT(number, 3600)
+    response.set_cookie('access', access, httponly=True,secure=True)
     refresh = await generateJWT(number, 2592000)
-    await UserJWT.create(id_id=user.id,refresh_code=refresh) #<-debil
+    await UserJWT.create(user_id=user.id,refresh_code=refresh, is_active=True)
     promocodes_set=await user.promocodes.all()
     promocodes=[]
     for i in promocodes_set:

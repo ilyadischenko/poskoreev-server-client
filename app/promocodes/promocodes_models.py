@@ -6,6 +6,7 @@ class PromoCodePercent(Model):
     description=fields.CharField(max_length=255, null=True)
     discount=fields.DecimalField(max_digits=4, decimal_places=2,default=00.00)
     for_all=fields.BooleanField(default=False)
+    is_active=fields.BooleanField(default=True)
     start=fields.DatetimeField()
     end=fields.DatetimeField()
 

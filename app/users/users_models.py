@@ -17,9 +17,11 @@ class User(Model):
         promocodes = []
         for i in promocodes_set:
             if(i.end > datetime.now(timezone.utc)):
-                promocodes.append({'promocode': i.short_name, 'discount': i.discount, 'expires at': i.end.astimezone()})
+                promocodes.append({'promocode': i.short_name,
+                                   'discription' : i.discription,
+                                   'discount': i.discount,
+                                   'expires at': i.end.astimezone()})
         return promocodes
-
 
 class UserJWT(Model):
     user=fields.ForeignKeyField('models.User',pk=True)

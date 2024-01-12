@@ -7,7 +7,16 @@ from datetime import datetime,timedelta, timezone
 from tzlocal import get_localzone
 import time
 user_router = APIRouter()
-
+@user_router.post('/refresh')
+async def refresh_token(responce : Response, number : str, id : int):
+    refresh = await UserJWT.get(user_id=id)
+    if (refresh.refresh_code["expires"] >= time.time()):
+        refresh.is_active = False
+        refresh.refresh_code=await generateJWT(number,2592000)
+        refresh.is_active=True
+    if (not refresh.is_active): raise HTTPException(status_code=401, detail="refresh isnt active")
+    new_access = await generateJWT(number, 3600)
+    responce.set_cookie("access", new_access)
 @user_router.get('/user')
 async def get_user(request: Request, response: Response):
     access=request.cookies.get("access")
@@ -15,18 +24,7 @@ async def get_user(request: Request, response: Response):
     check_access = await decodeJWT(access)
     number = check_access["number"]
     if (check_access["number"] != number): raise HTTPException(status_code=401, detail="bruh")
-    if(not check_access):
-        #?
-        #raise HTTPException(status_code=401, detail="access isnt active")
-        refresh=await UserJWT.get(user_id=id)
-        if(refresh.refresh_code["expires"] >= time.time()):
-            refresh.is_active=False
-            #обновляем рефреш
-            #refresh.refresh_code=await generateJWT(number,2592000)
-            #refresh.is_active=True
-        if (not refresh.is_active): raise HTTPException(status_code=401, detail="refresh isnt active")
-        new_access=await generateJWT(number, 3600)
-        response.set_cookie("access", new_access)
+    if(not check_access): raise HTTPException(status_code=401, detail="access isnt active")
     user = await User.get(phone=number)
     if (not user): raise HTTPException(status_code=404, detail=f"user with number {number} not found")
     return {'number':user.phone,
@@ -74,7 +72,7 @@ async def confirm_code(number : str, code : str, response : Response):
     #if(datetime.now().astimezone()>user.time_expires.astimezone()): raise HTTPException(status_code=500, detail="TIMES UP! Better luck next time")
     #конвертируем в utc хз че лучше
     if(datetime.now(timezone.utc)>user.time_expires): raise HTTPException(status_code=500, detail="TIMES UP! Better luck next time")
-    if(user.code!=code): raise HTTPException(status_code=500, detail="code is incorrect")
+    if(user.code!=code): raise HTTPException(status_code=401, detail="code is incorrect")
     #время токенов в utc
     access = await generateJWT(number, 3600)
     response.set_cookie('access', access, httponly=True,secure=True)

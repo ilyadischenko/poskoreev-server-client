@@ -14,33 +14,25 @@ async def get_user(request: Request, response: Response):
     if(not access) : raise HTTPException(status_code=401, detail="did u just delete cookie?")
     check_access = await decodeJWT(access)
     number = check_access["number"]
-    #if (check_access["number"] != number): raise HTTPException(status_code=401, detail="bruh")
-    if(not check_access):
-        refresh=await UserJWT.get(user_id=id)
-        if(refresh.refresh_code["expires"] >= time.time()): refresh.is_active=False
-        if (not refresh.is_active): raise HTTPException(status_code=401, detail="refresh isnt active")
-        new_access=await generateJWT(number, 3600)
-        response.set_cookie("access", new_access)
-    #if (not access): raise HTTPException(status_code=401, detail="Access Denied")
-    check_access = await decodeJWT(access)
-    number = check_access["number"]
     if (check_access["number"] != number): raise HTTPException(status_code=401, detail="bruh")
     if(not check_access):
-        refresh=await UserJWT.get(user_id_id=id)
-        if(refresh.refresh_code["expires"] >= time.time()): refresh.is_active=False
+        #?
+        #raise HTTPException(status_code=401, detail="access isnt active")
+        refresh=await UserJWT.get(user_id=id)
+        if(refresh.refresh_code["expires"] >= time.time()):
+            refresh.is_active=False
+            #обновляем рефреш
+            #refresh.refresh_code=await generateJWT(number,2592000)
+            #refresh.is_active=True
         if (not refresh.is_active): raise HTTPException(status_code=401, detail="refresh isnt active")
         new_access=await generateJWT(number, 3600)
         response.set_cookie("access", new_access)
     user = await User.get(phone=number)
     if (not user): raise HTTPException(status_code=404, detail=f"user with number {number} not found")
-    promocodes_set=await user.promocodes.all()
-    promocodes=[]
-    for i in promocodes_set:
-        promocodes.append({'promocode' :i.short_name, 'discount': i.discount, 'expires at' : i.end.astimezone()})
     return {'number':user.phone,
             'email':user.email,
             'telegram':user.telegram,
-            'promocodes': promocodes,
+            'promocodes': await user.get_all_promocodes(),
             'bonuses': user.bonuses}
 
 @user_router.post('/promocodes/give')
@@ -76,7 +68,7 @@ async def delete_user(number: str):
     return f"user {number} deleted"
 
 @user_router.post('/cofirm')
-async def confirm_code(number : str, code : str, response : Response, request : Request):
+async def confirm_code(number : str, code : str, response : Response):
     user = await User.get(phone=number)
     #конвертируем в локальную таймзону
     #if(datetime.now().astimezone()>user.time_expires.astimezone()): raise HTTPException(status_code=500, detail="TIMES UP! Better luck next time")
@@ -88,12 +80,8 @@ async def confirm_code(number : str, code : str, response : Response, request : 
     response.set_cookie('access', access, httponly=True,secure=True)
     refresh = await generateJWT(number, 2592000)
     await UserJWT.create(user_id=user.id,refresh_code=refresh, is_active=True)
-    promocodes_set=await user.promocodes.all()
-    promocodes=[]
-    for i in promocodes_set:
-        promocodes.append({'promocode' :i.short_name, 'discount': i.discount, 'expires at' : i.end.astimezone()})
     return {'number':user.phone,
             'email':user.email,
             'telegram':user.telegram,
-            'promocodes':promocodes,
+            'promocodes':user.get_all_promocodes(),
             'bonuses': user.bonuses}

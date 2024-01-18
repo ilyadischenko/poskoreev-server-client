@@ -2,11 +2,11 @@ from fastapi import FastAPI
 from tortoise import Tortoise
 from tortoise.contrib.fastapi import register_tortoise
 
-model_paths = ["app.users.users_models","app.promocodes.promocodes_models"]
+model_paths = ["app.users.users_models", "app.promocodes.promocodes_models"]
 
 TORTOISE_ORM = {
     "connections": {
-        "default": "postgres://postgres:1234@localhost:5432/test",
+        "default": "postgres://user:1234@localhost:5432/pizza",
     },
     "apps": {
         "models": {
@@ -17,6 +17,7 @@ TORTOISE_ORM = {
     "use_tz": False,
 }
 
+
 def init_db(app: FastAPI) -> None:
     register_tortoise(
         app,
@@ -25,5 +26,6 @@ def init_db(app: FastAPI) -> None:
         generate_schemas=True,
         add_exception_handlers=True,
     )
+
 
 Tortoise.init_models(model_paths, "models")

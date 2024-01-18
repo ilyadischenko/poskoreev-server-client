@@ -13,6 +13,7 @@ class User(Model):
     bonuses=fields.IntField(default=0,ge=0)
     code=fields.CharField(max_length=255)
     time_expires=fields.DatetimeField()
+
     async def get_all_promocodes(self):
         promocodes_set = await self.promocodes.filter(is_active=True)
         promocodes = []

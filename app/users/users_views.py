@@ -33,9 +33,9 @@ async def get_user(request: Request):
     number = check_access["number"]
     if (check_access["number"] != number): raise HTTPException(status_code=401, detail="bruh")
     if (not check_access): raise HTTPException(status_code=401, detail="access isnt active")
-    user = await User.get(phone=number)
+    user = await User.get(number=number)
     if (not user): raise HTTPException(status_code=404, detail=f"user with number {number} not found")
-    return {'number': user.phone,
+    return {'number': user.number,
             'email': user.email,
             'telegram': user.telegram,
             'promocodes': await user.get_all_promocodes(),
@@ -44,9 +44,9 @@ async def get_user(request: Request):
 
 @user_router.post('/api/v1/cofirmcode', tags=['Users'])
 async def confirm_code(number: str, code: str, response: Response):
-    user = await User.get(phone=number)
+    user = await User.get(number=number)
 
-    if (datetime.now(timezone.utc) > user.time_expires): raise HTTPException(status_code=500,
+    if (datetime.now(timezone.utc) > user.expires_at): raise HTTPException(status_code=500,
                                                                              detail="TIMES UP! Better luck next time")
     if (user.code != code): raise HTTPException(status_code=401, detail="code is incorrect")
     # время токенов в utc
@@ -54,7 +54,7 @@ async def confirm_code(number: str, code: str, response: Response):
     response.set_cookie('access', access, httponly=True, secure=True)
     refresh = await generateJWT(number, 2592000)
     await UserJWT.create(user_id=user.id, refresh_code=refresh, is_active=True)
-    return {'number': user.phone,
+    return {'number': user.number,
             'email': user.email,
             'telegram': user.telegram,
             # 'promocodes': user.get_all_promocodes(),
@@ -66,14 +66,14 @@ async def send_sms_to(number: str):
     code = await send_sms()
     if (not code): raise HTTPException(status_code=500, detail="apparently code wasnt generated")
     # в базе будет хранится локальное время с таймзоной но вернется в utc почему хз
-    time_expires = datetime.now(tz=get_localzone()) + timedelta(minutes=10)
-    await User.create(phone=number, code=code, time_expires=time_expires)
-    return f"code was sent to {number} and will expire at {time_expires}"
+    expires_at = datetime.now(tz=get_localzone()) + timedelta(minutes=10)
+    await User.create(number=number, code=code, expires_at=expires_at)
+    return f"code was sent to {number} and will expire at {expires_at}"
 
 
 @user_router.post('/dev/promocodes/give', tags=['dev'])
 async def give_promocode(number: str, promocode_id: int):
-    user = await User.get(phone=number)
+    user = await User.get(number=number)
     if (not user): raise HTTPException(status_code=404, detail=f"user with number {number} not found")
     promocode = await PromoCodePercent.get(id=promocode_id)
     if (not promocode): raise HTTPException(status_code=404, detail=f"promocode with id {promocode_id} not found")
@@ -83,7 +83,7 @@ async def give_promocode(number: str, promocode_id: int):
 
 @user_router.delete('/dev/promocodes/remove', tags=['dev'])
 async def remove_promocode(number: str, promocode_id: int):
-    user = await User.get(phone=number)
+    user = await User.get(number=number)
     if (not user): raise HTTPException(status_code=404, detail=f"user with number {number} not found")
     promocode = await PromoCodePercent.get(id=promocode_id)
     if (not promocode): raise HTTPException(status_code=404, detail=f"promocode with id {promocode_id} not found")
@@ -93,6 +93,6 @@ async def remove_promocode(number: str, promocode_id: int):
 
 @user_router.delete('/dev/deleteUser', tags=['dev'])
 async def delete_user(number: str):
-    if (not (await User.filter(phone=number).delete())): raise HTTPException(status_code=404,
+    if (not (await User.filter(number=number).delete())): raise HTTPException(status_code=404,
                                                                              detail=f"user {number} not found")
     return f"user {number} deleted"

@@ -3,26 +3,28 @@ from tortoise.models import Model
 from datetime import datetime, timezone
 
 class User(Model):
-    id=fields.IntField(pk=True)
+    id=fields.BigIntField(pk=True)
     name=fields.CharField(max_length=255,null=True)
-    phone=fields.CharField(unique=True,null=False,max_length=255)
-    email=fields.CharField(max_length=255,unique=True,null=True)
-    telegram=fields.CharField(max_length=255,unique=True,null=True)
     birthday=fields.DateField(null=True)
-    promocodes=fields.ManyToManyField('models.PromoCodePercent')
-    bonuses=fields.IntField(default=0,ge=0)
+    email=fields.CharField(max_length=255,unique=True,null=True)
+    number=fields.CharField(unique=True,null=False,max_length=255)
     code=fields.CharField(max_length=255)
-    time_expires=fields.DatetimeField()
+    expires_at=fields.DatetimeField()
+    telegram=fields.CharField(max_length=255,unique=True,null=True)
+    promocodes=fields.ManyToManyField('models.PromoCodePercent')
+    bonuses=fields.BigIntField(default=0,ge=0)
+
+
 
     async def get_all_promocodes(self):
         promocodes_set = await self.promocodes.filter(is_active=True)
         promocodes = []
         for i in promocodes_set:
-            if(i.end > datetime.now(timezone.utc)):
+            if(i.end_day > datetime.now(timezone.utc)):
                 promocodes.append({'promocode': i.short_name,
                                    'discription' : i.discription,
                                    'discount': i.discount,
-                                   'expires at': i.end.astimezone()})
+                                   'expires at': i.end_day.astimezone()})
         return promocodes
 
 class UserJWT(Model):

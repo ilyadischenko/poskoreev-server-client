@@ -7,32 +7,44 @@ from app.users.users_models import User, UserJWT
 from app.users.sms import send_sms
 from app.auth.jwt_handler import generateJWT, decodeJWT
 from app.promocodes.promocodes_models import PromoCodePercent
+from app.users.users_requests_models import RefreshModels
 
 user_router = APIRouter()
 
 
 @user_router.post('/api/v1/refresh', tags=['Users'])
-async def refresh_token(number: str, id: int, response: Response):
-    refresh = await UserJWT.get(user_id=id)
-    if (refresh.refresh_code["expires"] >= time.time()):
-        refresh.is_active = False
-        refresh.refresh_code = await generateJWT(number, 2592000)
-        refresh.is_active = True
-    if (not refresh.is_active): raise HTTPException(status_code=401, detail="refresh isnt active")
-    new_access = await generateJWT(number, 3600)
-    response.set_cookie("access", new_access)
+async def refresh_token(data: RefreshModels, response: Response):
+    if not await UserJWT.get(refresh_code=data.refresh, is_active=True).exists():
+        raise HTTPException(status_code=401, detail='refresh isnt active')
+
+    decoded_refresh = await decodeJWT(data.refresh)
+    user_id = decoded_refresh['id']
+    expires = decoded_refresh['expires']
+
+    if expires <= time.time(): raise HTTPException(status_code=401, detail='refresh isnt active')
+
+    await UserJWT.get(refresh_code=data.refresh, is_active=True).update(is_active=False)
+
+    new_refresh = await generateJWT(user_id, 2592000)
+    await UserJWT.create(user_id=user_id, refresh_code=new_refresh, is_active=True)
+
+    new_access = await generateJWT(user_id, 3600)
+    response.set_cookie('access', new_access)
+    return {
+        'refresh': new_refresh
+    }
 
 
 @user_router.get('/api/v1/getuserinfo', tags=['Users'])
 async def get_user(request: Request):
     access = request.cookies.get("access")
-    if (not access): raise HTTPException(status_code=401, detail="did u just delete cookie?")
+    if not access: raise HTTPException(status_code=401, detail="did u just delete cookie?")
+
     check_access = await decodeJWT(access)
-    number = check_access["number"]
-    if (check_access["number"] != number): raise HTTPException(status_code=401, detail="bruh")
-    if (not check_access): raise HTTPException(status_code=401, detail="access isnt active")
-    user = await User.get(number=number)
-    if (not user): raise HTTPException(status_code=404, detail=f"user with number {number} not found")
+    if not check_access: raise HTTPException(status_code=401, detail="access isnt active")
+    user_id = check_access["id"]
+    user = await User.get(id=user_id)
+    if not user: raise HTTPException(status_code=404, detail=f"user with number {user_id} not found")
     return {'number': user.number,
             'email': user.email,
             'telegram': user.telegram,
@@ -47,15 +59,17 @@ async def confirm_code(number: str, code: str, response: Response):
                                                                          detail="TIMES UP! Better luck next time")
     if user.code != code: raise HTTPException(status_code=401, detail="code is incorrect")
     # время токенов в utc
-    access = await generateJWT(number, 3600)
+    access = await generateJWT(user.id, 3600)
     response.set_cookie('access', access, httponly=True, secure=True)
-    refresh = await generateJWT(number, 2592000)
+    refresh = await generateJWT(user.id, 2592000)
     await UserJWT.create(user_id=user.id, refresh_code=refresh, is_active=True)
     return {'number': user.number,
             'email': user.email,
             'telegram': user.telegram,
-            'promocodes': await user.get_all_promocodes(user.id),
-            'bonuses': user.bonuses}
+            'promocodes': await user.get_all_promocodes(),
+            'bonuses': user.bonuses,
+            'refresh': refresh
+            }
 
 
 @user_router.post('/api/v1/login', tags=['Users'])
@@ -67,7 +81,7 @@ async def send_sms_to(number: str):
     if await User.filter(number=number).exists():
         await User.filter(number=number).update(expires_at=expires_at, code=code)
     else:
-        await User.update_or_create(number=number, code=code, expires_at=expires_at)
+        await User.create(number=number, code=code, expires_at=expires_at)
     return f"code was sent to {number} and will expire at {expires_at}"
 
 

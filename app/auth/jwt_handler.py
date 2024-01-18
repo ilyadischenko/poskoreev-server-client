@@ -5,9 +5,9 @@ from app.users.users_models import UserJWT
 from fastapi import Response, Request, HTTPException
 jwt_secret=config('secret')
 jwt_algorithm=config('algorithm')
-async def generateJWT(number: str, time_token_seconds : int):
+async def generateJWT(id: int, time_token_seconds : int):
     payload = {
-        "number": number,
+        "id": id,
         "expires": time.time() + time_token_seconds
     }
     token = jwt.encode(payload, jwt_secret, algorithm=jwt_algorithm)

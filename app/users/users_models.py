@@ -15,7 +15,7 @@ class User(Model):
     promocodes = fields.ManyToManyField('models.PromoCodePercent')
     bonuses = fields.BigIntField(default=0, ge=0)
 
-    async def get_all_promocodes(self, id):
+    async def get_all_promocodes(self):
         promocodes_set = await self.promocodes.filter(is_active=True)
         promocodes = []
         for i in promocodes_set:
@@ -31,3 +31,4 @@ class UserJWT(Model):
     user = fields.ForeignKeyField('models.User', pk=True)
     refresh_code = fields.CharField(max_length=255)
     is_active = fields.BooleanField()
+

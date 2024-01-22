@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 
 class User(Model):
-    id = fields.BigIntField(pk=True)
+    id = fields.IntField(pk=True)
     name = fields.CharField(max_length=255, null=True)
     birthday = fields.DateField(null=True)
     email = fields.CharField(max_length=255, unique=True, null=True)
@@ -13,7 +13,7 @@ class User(Model):
     expires_at = fields.DatetimeField()
     telegram = fields.CharField(max_length=255, unique=True, null=True)
     promocodes = fields.ManyToManyField('models.PromoCodePercent')
-    bonuses = fields.BigIntField(default=0, ge=0)
+    bonuses = fields.IntField(default=0, ge=0)
 
     async def get_all_promocodes(self):
         promocodes_set = await self.promocodes.filter(is_active=True)

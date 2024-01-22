@@ -6,11 +6,11 @@ model_paths = ["app.users.users_models", "app.promocodes.promocodes_models"]
 
 TORTOISE_ORM = {
     "connections": {
-        "default": "postgres://user:1234@localhost:5432/pizza",
+        "default": "postgres://postgres:1234@postgres:5432/pizza",
     },
     "apps": {
         "models": {
-            "models": model_paths,
+            "models": ["app.users.users_models", "app.promocodes.promocodes_models", "aerich.models"],
             "default_connection": "default",
         },
     },

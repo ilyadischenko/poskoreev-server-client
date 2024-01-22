@@ -5,7 +5,7 @@ services:
     image: postgres:latest
     container_name: my_postgres_db
     environment:
-      POSTGRES_DB: test
+      POSTGRES_DB: pizza
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1234
     ports:

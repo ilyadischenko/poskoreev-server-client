@@ -12,31 +12,34 @@ from app.users.users_requests_models import RefreshModels
 user_router = APIRouter()
 
 
-@user_router.post('/api/v1/refresh', tags=['Users'])
-async def refresh_token(data: RefreshModels, response: Response):
-    if not await UserJWT.get(refresh_code=data.refresh, is_active=True).exists():
-        raise HTTPException(status_code=401, detail='refresh isnt active')
-
-    decoded_refresh = await decodeJWT(data.refresh)
-    user_id = decoded_refresh['id']
-    expires = decoded_refresh['expires']
-
-    if expires <= time.time(): raise HTTPException(status_code=401, detail='refresh isnt active')
-
-    await UserJWT.get(refresh_code=data.refresh, is_active=True).update(is_active=False)
-
-    new_refresh = await generateJWT(user_id, 2592000)
-    await UserJWT.create(user_id=user_id, refresh_code=new_refresh, is_active=True)
-
-    new_access = await generateJWT(user_id, 3600)
-    response.set_cookie('access', new_access)
-    return {
-        'refresh': new_refresh
-    }
+# @user_router.post('/api/v1/refresh', tags=['Users'])
+# async def refresh_token(data: RefreshModels, response: Response):
+#     if not await UserJWT.get(refresh_code=data.refresh, is_active=True).exists():
+#         raise HTTPException(status_code=401, detail='refresh isnt active')
+#
+#     decoded_refresh = await decodeJWT(data.refresh)
+#     user_id = decoded_refresh['id']
+#     expires = decoded_refresh['expires']
+#
+#     if expires <= time.time(): raise HTTPException(status_code=401, detail='refresh isnt active')
+#
+#     await UserJWT.get(refresh_code=data.refresh, is_active=True).update(is_active=False)
+#
+#     new_refresh = await generateJWT(user_id, 2592000)
+#     await UserJWT.create(user_id=user_id, refresh_code=new_refresh, is_active=True)
+#
+#     new_access = await generateJWT(user_id, 3600)
+#     response.set_cookie('access', new_access)
+#     return {
+#         'refresh': new_refresh
+#     }
 
 
 @user_router.get('/api/v1/getuserinfo', tags=['Users'])
 async def get_user(request: Request):
+    print('-------------------------------')
+    print(request.cookies)
+    print('-------------------------------')
     access = request.cookies.get("access")
     if not access: raise HTTPException(status_code=401, detail="did u just delete cookie?")
 
@@ -52,7 +55,7 @@ async def get_user(request: Request):
             'bonuses': user.bonuses}
 
 
-@user_router.post('/api/v1/cofirmcode', tags=['Users'])
+@user_router.post('/api/v1/confirmcode', tags=['Users'])
 async def confirm_code(number: str, code: str, response: Response):
     user = await User.get(number=number)
     if datetime.now(timezone.utc) > user.expires_at: raise HTTPException(status_code=500,
@@ -60,7 +63,7 @@ async def confirm_code(number: str, code: str, response: Response):
     if user.code != code: raise HTTPException(status_code=401, detail="code is incorrect")
     # время токенов в utc
     access = await generateJWT(user.id, 3600)
-    response.set_cookie('access', access, httponly=True, secure=True)
+    response.set_cookie('access', access, httponly=False, samesite='none', secure=True)
     refresh = await generateJWT(user.id, 2592000)
     await UserJWT.create(user_id=user.id, refresh_code=refresh, is_active=True)
     return {'number': user.number,
@@ -70,6 +73,11 @@ async def confirm_code(number: str, code: str, response: Response):
             'bonuses': user.bonuses,
             'refresh': refresh
             }
+
+@user_router.post('/api/v1/exit', tags=['Users'])
+async def exit(response: Response):
+    response.delete_cookie('access', httponly=False, samesite='none', secure=True)
+    return 'ok'
 
 
 @user_router.post('/api/v1/login', tags=['Users'])

@@ -32,3 +32,5 @@ class UserJWT(Model):
     refresh_code = fields.CharField(max_length=255)
     is_active = fields.BooleanField()
 
+class UserBlacklist(Model):
+    user_id = fields.IntField()

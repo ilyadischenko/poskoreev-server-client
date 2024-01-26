@@ -3,7 +3,7 @@ from tzlocal import get_localzone
 import time
 from datetime import datetime, timedelta, timezone
 
-from app.users.users_models import User, UserJWT
+from app.users.users_models import User, UserJWT, UserBlacklist
 from app.users.sms import send_sms
 from app.auth.jwt_handler import generateJWT, decodeJWT
 from app.promocodes.promocodes_models import PromoCodePercent
@@ -78,8 +78,11 @@ async def send_sms_to(number: str):
     if (not code): raise HTTPException(status_code=500, detail="apparently code wasnt generated")
     # в базе будет хранится локальное время с таймзоной но вернется в utc почему хз
     expires_at = datetime.now(tz=get_localzone()) + timedelta(minutes=10)
-    if await User.filter(number=number).exists():
-        await User.filter(number=number).update(expires_at=expires_at, code=code)
+    user = await User.get_or_none(number=number)
+    if user:
+        if (await UserBlacklist.filter(user_id=user.id)): raise HTTPException(status_code=403, detail=f" {number} is in blacklist")
+        user.expires_at=expires_at
+        user.code=code
     else:
         await User.create(number=number, code=code, expires_at=expires_at)
     return f"code was sent to {number} and will expire at {expires_at}"
@@ -110,3 +113,12 @@ async def delete_user(number: str):
     if not (await User.filter(number=number).delete()): raise HTTPException(status_code=404,
                                                                             detail=f"user {number} not found")
     return f"user {number} deleted"
+
+@user_router.post('/dev/banUser', tags=['dev'])
+async def banUser(id : int):
+    if not (await UserBlacklist.create(user_id=id)): raise HTTPException(status_code=400, detail="oops something went wrong")
+    return f"user {id} banned"
+@user_router.delete('/dev/unbanUser', tags=['dev'])
+async def unbanUser(id : int):
+    if not (await UserBlacklist.filter(user_id=id).delete()): raise HTTPException(status_code=400, detail="oops something went wrong")
+    return f"user {id} unbanned"

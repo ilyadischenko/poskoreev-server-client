@@ -23,7 +23,8 @@ class User(Model):
                 promocodes.append({'promocode': i.short_name,
                                    'description': i.description,
                                    'discount': i.discount,
-                                   'expires_at': i.end_day.astimezone()})
+                                   'min': i.min_sum,
+                                   'expires_at': i.end_day.astimezone().strftime('%d.%m.%Y')})
         return promocodes
 
 

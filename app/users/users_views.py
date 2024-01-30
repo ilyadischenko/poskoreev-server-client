@@ -37,9 +37,7 @@ user_router = APIRouter()
 
 @user_router.get('/api/v1/getuserinfo', tags=['Users'])
 async def get_user(request: Request):
-    print('-------------------------------')
-    print(request.cookies)
-    print('-------------------------------')
+
     access = request.cookies.get("access")
     if not access: raise HTTPException(status_code=401, detail="did u just delete cookie?")
 

@@ -5,9 +5,8 @@ from app.database import init_db
 
 from app.users.users_views import user_router
 from app.promocodes.promocodes_views import promocodes_router
+from app.products.products_views import products_router
 
-import socket
-socket.getaddrinfo(socket.gethostname(), None)
 
 app = FastAPI()
 
@@ -24,3 +23,4 @@ app.add_middleware(
 
 app.include_router(user_router)
 app.include_router(promocodes_router)
+app.include_router(products_router)

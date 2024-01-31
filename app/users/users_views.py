@@ -8,6 +8,14 @@ from app.users.sms import send_sms
 from app.auth.jwt_handler import generateJWT, decodeJWT
 from app.promocodes.promocodes_models import PromoCodePercent
 from app.users.users_requests_models import RefreshModels
+import re
+async def validate_number(phone_number):
+    pattern = re.compile(r'^(?:\+7|\b8)\d{10}$')
+    if re.match(pattern, phone_number):
+        if(phone_number[0]=="+"):
+            return phone_number[2::]
+        return phone_number[1::]
+    raise HTTPException(status_code=400, detail="these r some random numbers")
 
 user_router = APIRouter()
 
@@ -46,7 +54,7 @@ async def get_user(request: Request):
     user_id = check_access["id"]
     user = await User.get(id=user_id)
     if not user: raise HTTPException(status_code=404, detail=f"user with number {user_id} not found")
-    return {'number': user.number,
+    return {'number': "8"+user.number,
             'email': user.email,
             'telegram': user.telegram,
             'promocodes': await user.get_all_promocodes(),
@@ -55,16 +63,17 @@ async def get_user(request: Request):
 
 @user_router.post('/api/v1/confirmcode', tags=['Users'])
 async def confirm_code(number: str, code: str, response: Response):
-    user = await User.get(number=number)
-    if datetime.now(timezone.utc) > user.expires_at: raise HTTPException(status_code=500,
+    formatted_number = await validate_number(number)
+    user = await User.get(number=formatted_number)
+    if datetime.now(timezone.utc) > user.expires_at: raise HTTPException(status_code=403,
                                                                          detail="TIMES UP! Better luck next time")
-    if user.code != code: raise HTTPException(status_code=401, detail="code is incorrect")
+    if user.code != code: raise HTTPException(status_code=403, detail="code is incorrect")
     # время токенов в utc
     access = await generateJWT(user.id, 3600)
     response.set_cookie('access', access, httponly=False, samesite='none', secure=True)
     refresh = await generateJWT(user.id, 2592000)
     await UserJWT.create(user_id=user.id, refresh_code=refresh, is_active=True)
-    return {'number': user.number,
+    return {'number': "8"+user.number,
             'email': user.email,
             'telegram': user.telegram,
             'promocodes': await user.get_all_promocodes(),
@@ -80,17 +89,17 @@ async def exit(response: Response):
 
 @user_router.post('/api/v1/login', tags=['Users'])
 async def send_sms_to(number: str):
-    code = await send_sms()
-    if (not code): raise HTTPException(status_code=500, detail="apparently code wasnt generated")
-    # в базе будет хранится локальное время с таймзоной но вернется в utc почему хз
-    expires_at = datetime.now(tz=get_localzone()) + timedelta(minutes=10)
-    user = await User.get_or_none(number=number)
+    formatted_number= await validate_number(number)
+    user = await User.get_or_none(number=formatted_number)
     if user:
         if (await UserBlacklist.filter(user_id=user.id)): raise HTTPException(status_code=403, detail=f" {number} is in blacklist")
-        user.expires_at=expires_at
-        user.code=code
+        return f"code was sent to {number} and will expire at {user.expires_at}"
     else:
-        await User.create(number=number, code=code, expires_at=expires_at)
+        code = await send_sms()
+        if (not code): raise HTTPException(status_code=500, detail="apparently code wasnt generated")
+        # в базе будет хранится локальное время с таймзоной но вернется в utc почему хз
+        expires_at = datetime.now(tz=get_localzone()) + timedelta(minutes=10)
+        await User.create(number=formatted_number, code=code, expires_at=expires_at)
     return f"code was sent to {number} and will expire at {expires_at}"
 
 

@@ -8,16 +8,47 @@ products_router = APIRouter()
 async def get_product():
 
     list = await Menu.all().prefetch_related('product')
+    raw=[]
     return_list = []
-    for i in list:
-        return_list.append({
-            'id': i.id,
+    new=True
+    c=-1
+    for j,i in enumerate(list):
+        raw.append({
             'title': i.product.title,
             'description': i.product.description,
-            'price': i.price,
-            'quantity': i.quantity,
-            'size': i.size
+            'price': [i.price],
+            'quantity': [i.quantity],
+            'size': [i.size]
         })
+        if new:
+            print("//if new//")
+            return_list.append(raw[j])
+            c+=1
+            print(f"its new so adding {raw[j]}, c={c}")
+        else:
+            print("//if new else//")
+            print(f"j={j}")
+            if raw[j]["title"] == return_list[c]["title"]:
+                print("//if raw[j]//")
+                print(j)
+                print(raw[j])
+                return_list[c]["price"]=return_list[c]["price"]+raw[j]["price"]
+                return_list[c]["quantity"] = return_list[c]["quantity"] + raw[j]["quantity"]
+                return_list[c]["size"] = return_list[c]["size"] + raw[j]["size"]
+                print(f"merging lists {return_list[c]}")
+            else:
+                return_list.append(raw[j])
+                c += 1
+        if raw[j]["title"] == return_list[c]["title"]:
+            print("//if raw[j]//")
+            print(j)
+            print(raw[j])
+            print(f"{raw[j]["title"]}=={return_list[c]["title"]} nothing new")
+            new=False
+        else:
+            print("//if raw[j] else//")
+            print(f"{raw[j]["title"]}!={return_list[c]["title"]} its new")
+            new = True
     print(return_list)
 
     return return_list

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from tortoise import Tortoise
 from tortoise.contrib.fastapi import register_tortoise
 
-model_paths = ["app.users.users_models", "app.promocodes.promocodes_models"]
+model_paths = ["app.users.users_models", "app.promocodes.promocodes_models", "app.products.products_models", "aerich.models"]
 
 TORTOISE_ORM = {
     "connections": {

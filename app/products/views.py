@@ -9,44 +9,43 @@ products_router = APIRouter(
 
 @products_router.get('/', tags=['Products'])
 async def get_product():
-    menu = await Menu.all().prefetch_related('product').order_by('size')
-    products=[]
-    c=0
+    menu = await Menu.all().prefetch_related('product').order_by('size').filter(visible=True)
+    products_dict = {}
+
     for i in menu:
-        products.append({"type": i.category_id,
-                         "items": {
-                             "id": i.id,
-                             "title": i.product.title,
-                             "img": i.product.img,
-                             "description": i.product.description,
-                             "in_stock": i.in_stock,
-                             "visible": i.visible
-                         }})
-        products[c]["items"].update(bonuses=[i.bonuses for i in menu if i.product.title==products[c]["items"]["title"]],
-                                    prices=[i.price for i in menu if i.product.title==products[c]["items"]["title"]],
-                                    sizes=[i.size for i in menu if i.product.title==products[c]["items"]["title"]])
-        break
-    print([products[i]["items"]["title"] for i in range(len(products))])
-    for i in menu:
-        if c==0:
-            c+=1
-            continue
-        if [products[i]["items"]["title"] for i in range(len(products))].count(i.product.title):
-            continue
-        products.append({"type": i.category_id,
-                         "items": {
-                             "id": i.id,
-                             "title": i.product.title,
-                             "img": i.product.img,
-                             "description": i.product.description,
-                             "in_stock": i.in_stock,
-                             "visible": i.visible
-                         }})
-        products[c]["items"].update(bonuses=[i.bonuses for i in menu if i.product.title==products[c]["items"]["title"]],
-                                    prices=[i.price for i in menu if i.product.title==products[c]["items"]["title"]],
-                                    sizes=[i.size for i in menu if i.product.title==products[c]["items"]["title"]])
-        c+=1
-    return {"products" : products}
+        type = i.category_id
+        if type not in products_dict:
+            products_dict[type] = {
+                "type": type,
+                "items": []
+            }
+
+        existing_item = next((item for item in products_dict[type]["items"] if item["title"] == i.product.title), None)
+        if existing_item:
+            # Item with the same title already exists, update parameters
+            existing_item["id"].append(i.id)
+            existing_item["in_stock"].append(i.in_stock)
+            existing_item["bonuses"].append(i.bonuses)
+            existing_item["prices"].append(i.price)
+            existing_item["sizes"].append(i.size)
+            existing_item["units"].append(i.unit)
+        else:
+            # Create a new item
+            products_dict[type]["items"].append({
+                "title": i.product.title,
+                "img": i.product.img,
+                "description": i.product.description,
+                "id": [i.id],
+                "in_stock": [i.in_stock],
+                "bonuses": [i.bonuses],
+                "prices": [i.price],
+                "sizes": [i.size],
+                "units": [i.unit]
+            })
+    # Convert dictionary values to a list
+    p=dict(sorted(products_dict.items()))
+    products = list(p.values())
+    return {"products": products}
 
 
 @products_router.post('/addProduct', tags=['Products'])
@@ -60,5 +59,5 @@ async def add_product_type(type: str):
 
 
 @products_router.post('/addMenuItem', tags=['Products'])
-async def add_menu_item(product: int, type: int, price: int, size: int, quantity: int):
-    return await Menu.create(product_id=product, category_id=type, price=price, size=size, quantity=quantity)
+async def add_menu_item(product: int, type: int, price: int, size: int, unit: str):
+    return await Menu.create(product_id=product, category_id=type, price=price, size=size, unit=unit)

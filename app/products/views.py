@@ -1,57 +1,46 @@
 from fastapi import HTTPException, APIRouter, Response, Request
 
-from app.products.products_models import Products, Menu, ProductsCategories
+from app.products.models import Products, Menu, ProductsCategories
 
 products_router = APIRouter(
     prefix="/api/v1/products"
 )
 
+
 @products_router.get('/', tags=['Products'])
 async def get_product():
-
-    list = await Menu.all().prefetch_related('product')
-    raw=[]
+    list = await Menu.all().prefetch_related('product').order_by('quantity', '-quantity')
+    ord = await Menu.all().prefetch_related('product').values('categories_id')
+    print(ord)
+    raw = []
     return_list = []
-    new=True
-    c=-1
-    for j,i in enumerate(list):
+    new = True
+    c = -1
+    for j, i in enumerate(list):
         raw.append({
             'title': i.product.title,
             'description': i.product.description,
             'price': [i.price],
             'quantity': [i.quantity],
-            'size': [i.size]
+            'size': [i.size],
+            'bonuses': [i.bonuses]
         })
         if new:
-            print("//if new//")
             return_list.append(raw[j])
-            c+=1
-            print(f"its new so adding {raw[j]}, c={c}")
+            c += 1
         else:
-            print("//if new else//")
-            print(f"j={j}")
             if raw[j]["title"] == return_list[c]["title"]:
-                print("//if raw[j]//")
-                print(j)
-                print(raw[j])
-                return_list[c]["price"]=return_list[c]["price"]+raw[j]["price"]
+                return_list[c]["price"] = return_list[c]["price"] + raw[j]["price"]
                 return_list[c]["quantity"] = return_list[c]["quantity"] + raw[j]["quantity"]
                 return_list[c]["size"] = return_list[c]["size"] + raw[j]["size"]
-                print(f"merging lists {return_list[c]}")
+                return_list[c]["bonuses"] = return_list[c]["bonuses"] + raw[j]["bonuses"]
             else:
                 return_list.append(raw[j])
                 c += 1
         if raw[j]["title"] == return_list[c]["title"]:
-            print("//if raw[j]//")
-            print(j)
-            print(raw[j])
-            print(f"{raw[j]["title"]}=={return_list[c]["title"]} nothing new")
-            new=False
+            new = False
         else:
-            print("//if raw[j] else//")
-            print(f"{raw[j]["title"]}!={return_list[c]["title"]} its new")
             new = True
-    print(return_list)
 
     return return_list
 
@@ -69,4 +58,3 @@ async def add_product_type(type: str):
 @products_router.post('/addMenuItem', tags=['Products'])
 async def add_menu_item(product: int, type: int, price: int, size: int, quantity: int):
     return await Menu.create(product_id=product, categories_id=type, price=price, size=size, quantity=quantity)
-

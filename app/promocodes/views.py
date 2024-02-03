@@ -1,5 +1,5 @@
 from fastapi import HTTPException, APIRouter
-from app.promocodes.promocodes_models import PromoCodePercent
+from app.promocodes.models import PromoCodePercent
 from datetime import datetime, timezone, timedelta
 from tzlocal import get_localzone
 

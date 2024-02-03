@@ -1,48 +1,23 @@
-from fastapi import HTTPException, APIRouter, Response, Request, Depends
+from fastapi import HTTPException, APIRouter, Response, Depends
 from tzlocal import get_localzone
-import time
 from datetime import datetime, timedelta, timezone
 
-from app.users.users_models import User, UserJWT, UserBlacklist
+from app.users.models import User, UserJWT, UserBlacklist
+from app.users.service import AuthGuard, auth, validate_number
 from app.users.sms import send_sms
-from app.auth.jwt_handler import generateJWT, decodeJWT
-from app.promocodes.promocodes_models import PromoCodePercent
-from app.users.users_requests_models import RefreshModels
-import re
-
-async def validate_number(phone_number):
-    pattern = re.compile(r'^(?:\+7|\b8)\d{10}$')
-    if re.match(pattern, phone_number):
-        if(phone_number[0]=="+"):
-            return phone_number[2::]
-        return phone_number[1::]
-    raise HTTPException(status_code=400, detail="these r some random numbers")
-
+from app.auth.jwt_handler import generateJWT
+from app.promocodes.models import PromoCodePercent
 
 user_router = APIRouter(
     prefix='/api/v1/users'
 )
 
 
-
-class AuthGuard:
-    async def __call__(self, request: Request):
-        if '_at' not in request.cookies:
-            raise HTTPException(status_code=401, detail="Запрещено")
-
-        decoded_code = await decodeJWT(request.cookies.get('_at'))
-        if not decoded_code: raise HTTPException(status_code=401, detail="Не авторизован")
-        return decoded_code['id']
-
-
-auth = AuthGuard()
-
-
 @user_router.get('/', tags=['Users'])
 async def get_user(user_id: AuthGuard = Depends(auth)):
     user = await User.get(id=user_id)
     if not user: raise HTTPException(status_code=404, detail=f"user with number {user_id} not found")
-    return {'number': "8"+user.number,
+    return {'number': "8" + user.number,
             'email': user.email,
             'telegram': user.telegram,
             'promocodes': await user.get_all_promocodes(),
@@ -59,7 +34,7 @@ async def confirm_code(number: str, code: str, response: Response):
     # время токенов в utc
     access = await generateJWT(user.id)
     response.set_cookie('_at', access, httponly=False, samesite='none', secure=True)
-    return {'number': "8"+user.number,
+    return {'number': "8" + user.number,
             'email': user.email,
             'telegram': user.telegram,
             'promocodes': await user.get_all_promocodes(),
@@ -75,9 +50,10 @@ async def exit(response: Response):
 
 @user_router.post('/login', tags=['Users'])
 async def send_sms_to(number: str):
-    formatted_number= await validate_number(number)
+    formatted_number = await validate_number(number)
     user = await User.get_or_none(number=formatted_number)
-    if (await UserBlacklist.filter(user_id=user.id)): raise HTTPException(status_code=403, detail=f" {number} is in blacklist")
+    if await UserBlacklist.filter(user_id=user.id): raise HTTPException(status_code=403,
+                                                                        detail=f" {number} is in blacklist")
     code = await send_sms()
     expires_at = datetime.now(tz=get_localzone()) + timedelta(minutes=10)
     if (not code): raise HTTPException(status_code=500, detail="apparently code wasnt generated")

@@ -1,11 +1,13 @@
+
+from app.database import init_db
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import init_db
 
-from app.users.users_views import user_router
-from app.promocodes.promocodes_views import promocodes_router
-from app.products.products_views import products_router
+
+from app.users.views import user_router
+from app.promocodes.views import promocodes_router
+from app.products.views import products_router
 
 
 app = FastAPI()

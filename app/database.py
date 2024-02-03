@@ -3,21 +3,26 @@ from fastapi import FastAPI
 from tortoise import Tortoise
 from tortoise.contrib.fastapi import register_tortoise
 
-model_paths = ["app.users.users_models", "app.promocodes.promocodes_models", "app.products.products_models", "aerich.models"]
+model_paths = ["app.users.models", "app.promocodes.models", "app.products.models", "app.restaurants.models",
+               "aerich.models"
+               ]
 
 TORTOISE_ORM = {
     "connections": {
-        # i change postgres to localhost, because local i cant connect to db
         "default": "postgres://user:1234@localhost:5432/pizza",
     },
     "apps": {
         "models": {
-            "models": ["app.users.users_models", "app.promocodes.promocodes_models", "app.products.products_models", "aerich.models"],
+            "models": ["app.users.models", "app.promocodes.models", "app.products.models","app.restaurants.models",
+                       "aerich.models"
+                       ],
             "default_connection": "default",
         },
     },
     "use_tz": False,
 }
+
+
 def init_db(app: FastAPI) -> None:
     register_tortoise(
         app,

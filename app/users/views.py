@@ -52,12 +52,12 @@ async def exit(response: Response):
 async def send_sms_to(number: str):
     formatted_number = await validate_number(number)
     user = await User.get_or_none(number=formatted_number)
-    if await UserBlacklist.filter(user_id=user.id): raise HTTPException(status_code=403,
-                                                                        detail=f" {number} is in blacklist")
     code = await send_sms()
     expires_at = datetime.now(tz=get_localzone()) + timedelta(minutes=10)
     if (not code): raise HTTPException(status_code=500, detail="apparently code wasnt generated")
     if user:
+        if await UserBlacklist.filter(user_id=user.id): raise HTTPException(status_code=403,
+                                                                            detail=f" {number} is in blacklist")
         user.expires_at = expires_at
         user.code = code
     else:
@@ -67,7 +67,8 @@ async def send_sms_to(number: str):
 
 @user_router.post('/dev/promocodes/give', tags=['dev'])
 async def give_promocode(number: str, promocode_id: int):
-    user = await User.get(number=number)
+    formatted_number = await validate_number(number)
+    user = await User.get(number=formatted_number)
     if not user: raise HTTPException(status_code=404, detail=f"user with number {number} not found")
     promocode = await PromoCodePercent.get(id=promocode_id)
     if not promocode: raise HTTPException(status_code=404, detail=f"promocode with id {promocode_id} not found")

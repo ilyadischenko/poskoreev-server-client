@@ -10,7 +10,7 @@ class PromoCodePercent(Model):
     for_all = fields.BooleanField(default=False)
     discount = fields.DecimalField(max_digits=4, decimal_places=2, default=00.00)
     start_day = fields.DatetimeField()
-    end_day = fields.DateField()
+    end_day = fields.DatetimeField()
     min_sum = fields.IntField(null=True)
     is_active = fields.BooleanField(default=True)
 

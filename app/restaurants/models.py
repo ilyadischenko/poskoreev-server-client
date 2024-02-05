@@ -7,7 +7,7 @@ class Address(Model):
     min_sum = fields.IntField(default=0, ge=0)
 
 
-class Restaurants(Model):
+class Restaurant(Model):
     id = fields.IntField(pk=True)
     open = fields.TimeField(null=False)
     closed = fields.TimeField(null=False)

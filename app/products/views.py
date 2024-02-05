@@ -9,11 +9,11 @@ products_router = APIRouter(
 
 @products_router.get('/', tags=['Products'])
 async def get_product():
-    menu = await Menu.all().prefetch_related('product').order_by('size').filter(visible=True)
+    menu = await Menu.all().order_by('size').filter(visible=True).prefetch_related('product', 'category')
     products_dict = {}
 
     for i in menu:
-        type = i.category_id
+        type = i.category.type
         if type not in products_dict:
             products_dict[type] = {
                 "type": type,

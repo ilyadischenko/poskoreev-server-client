@@ -187,8 +187,8 @@ components:
           example: [390, 440, 550]
         sizes:
           type: array
-          example: ['Маленькая', 'Средняя', 'Большая']
-        grams:
+          example: [25, 30, 35]
+        quantity:
           type: array
           example: [200, 350, 600]
         in_stock:

@@ -45,6 +45,7 @@ async def confirm_code(number: str, code: str, response: Response):
 @user_router.post('/exit', tags=['Users'])
 async def exit(response: Response):
     response.delete_cookie('_at', httponly=False, samesite='none', secure=True)
+    response.delete_cookie('_oi', httponly=False, samesite='none', secure=True)
     return 'ok'
 
 

@@ -60,6 +60,7 @@ async def send_sms_to(number: str):
                                                                             detail=f" {number} is in blacklist")
         user.expires_at = expires_at
         user.code = code
+        await user.save()
     else:
         await User.create(number=formatted_number, code=code, expires_at=expires_at)
     return f"code was sent to {number} and will expire at {expires_at}"

@@ -83,6 +83,7 @@ async def removeOrder(user_id: AuthGuard = Depends(auth)):
     order = await Order.get_or_none(user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail="Nothing to remove")
     log = await OrderLog.get(order_id=order.pk)
+    log.status=0
     log.canceled_at=datetime.now()
     await log.save()
     return await order.delete()

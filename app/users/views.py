@@ -6,7 +6,7 @@ from app.users.models import User, UserJWT, UserBlacklist
 from app.users.service import AuthGuard, auth, validate_number
 from app.users.sms import send_sms
 from app.auth.jwt_handler import generateJWT
-from app.promocodes.models import PromoCodePercent
+from app.promocodes.models import PromoCode
 
 user_router = APIRouter(
     prefix='/api/v1/users'
@@ -15,7 +15,7 @@ user_router = APIRouter(
 
 @user_router.get('/', tags=['Users'])
 async def get_user(user_id: AuthGuard = Depends(auth)):
-    user = await User.get(id=user_id)
+    user = await User.get_or_none(id=user_id)
     if not user: raise HTTPException(status_code=404, detail=f"user with number {user_id} not found")
     return {'number': "8" + user.number,
             'email': user.email,
@@ -70,9 +70,9 @@ async def send_sms_to(number: str):
 @user_router.post('/dev/promocodes/give', tags=['dev'])
 async def give_promocode(number: str, promocode_id: int):
     formatted_number = await validate_number(number)
-    user = await User.get(number=formatted_number)
+    user = await User.get_or_none(number=formatted_number)
     if not user: raise HTTPException(status_code=404, detail=f"user with number {number} not found")
-    promocode = await PromoCodePercent.get(id=promocode_id)
+    promocode = await PromoCode.get_or_none(id=promocode_id)
     if not promocode: raise HTTPException(status_code=404, detail=f"promocode with id {promocode_id} not found")
     await user.promocodes.add(promocode)
     return f"promocode with id {promocode_id} was given to user {number}"
@@ -80,9 +80,10 @@ async def give_promocode(number: str, promocode_id: int):
 
 @user_router.delete('/dev/promocodes/remove', tags=['dev'])
 async def remove_promocode(number: str, promocode_id: int):
-    user = await User.get(number=number)
+    formatted_number = await validate_number(number)
+    user = await User.get_or_none(number=formatted_number)
     if not user: raise HTTPException(status_code=404, detail=f"user with number {number} not found")
-    promocode = await PromoCodePercent.get(id=promocode_id)
+    promocode = await PromoCode.get_or_none(id=promocode_id)
     if not promocode: raise HTTPException(status_code=404, detail=f"promocode with id {promocode_id} not found")
     await user.promocodes.remove(promocode)
     return f"promocode with id {promocode_id} removed from user {number}"

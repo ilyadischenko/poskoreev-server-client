@@ -15,7 +15,7 @@ class Order(Model):
     #time = fields.DatetimeField(null=True)
     added_bonuses=fields.IntField(ge=0, default=0)
     #promocode = fields.ForeignKeyField('models.PromoCodePercent', null=True)
-    #0 - canceled 1 - paid 2 - in progress
+    #0 - canceled 1 - paid 2 - in progress, 3 expired
     status = fields.IntField(default=2)
     #address = fields.ForeignKeyField('models.Address')
     products_count = fields.IntField(ge=0, default=0)

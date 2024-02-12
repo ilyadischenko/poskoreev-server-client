@@ -47,7 +47,6 @@ async def addToOrder(menu_id: int,
         await cart_item.save()
     await CalculateOrder(order)
     return await GetOrderInJSON(order)
-    # return await getOrder(user_id)
 
 
 @orders_router.delete('/removeFromCart', tags=['Orders'])

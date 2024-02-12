@@ -12,7 +12,7 @@ async def OrderCheckOrCreate(cookies, user_id, response):
         await OrderLog.create(order_id=order.pk, user_id=user_id)
         await order.save()
         response.set_cookie('_oi', order.id, httponly=True, samesite='none', secure=True)
-        return order.id
+        return order
 
     # тут нужна проверка на истечение срока ордера. т.е. если он был инициализован вчера, то нужно создать новый,
     # а вчерашний кинуть в истёкший

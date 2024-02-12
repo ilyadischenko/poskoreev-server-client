@@ -14,9 +14,15 @@ user_router = APIRouter(
 
 
 @user_router.get('/', tags=['Users'])
-async def get_user(user_id: AuthGuard = Depends(auth)):
+async def get_user(
+        response: Response,
+        user_id: AuthGuard = Depends(auth)
+):
     user = await User.get_or_none(id=user_id)
-    if not user: raise HTTPException(status_code=404, detail=f"user with number {user_id} not found")
+    if not user:
+        response.delete_cookie('_at', httponly=False, samesite='none', secure=True)
+        response.delete_cookie('_oi', httponly=False, samesite='none', secure=True)
+        raise HTTPException(status_code=404, detail=f"user with number {user_id} not found")
     return {'number': "8" + user.number,
             'email': user.email,
             'telegram': user.telegram,

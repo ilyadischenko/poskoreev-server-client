@@ -4,7 +4,8 @@ from fastapi.responses import PlainTextResponse
 from app.orders.models import Order, CartItem, OrderLog
 from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJSON
 from app.products.models import Menu
-# from app.users.models import User
+from app.users.models import User
+from app.promocodes.models import PromoCode
 from app.users.service import AuthGuard, auth
 from datetime import datetime, timezone, timedelta
 
@@ -109,3 +110,36 @@ async def finishOrder(user_id: AuthGuard = Depends(auth)):
     log.paid_at = datetime.now()
     await log.save()
     return await order.delete()
+
+@orders_router.post('/addPromocode', tags=['Orders'])
+async def addPromocode(promocode : str, user_id: AuthGuard = Depends(auth)):
+    order = await Order.get_or_none(user_id=user_id)
+    if not order: raise HTTPException(status_code=404, detail="No order")
+    if order.promocode: await removePromocode(user_id)
+    user = await User.get(id=user_id)
+    user_promocodes = await user.get_all_promocodes_dev()
+    for i in user_promocodes:
+        if promocode == i["promocode"]:
+            if i["minimal_sum"] <= order.sum:
+                if i["type"]==2:
+                    order.total_sum=round(order.sum*(1-i["effect"]*0.01), 2)
+                elif i["type"]==3:
+                    order.total_sum = order.sum - i["effect"]
+                if order.total_sum <= 0 : raise HTTPException(status_code=405, detail="what")
+                order.promocode = promocode
+                promocode = await PromoCode.get(id=i["id"])
+                promocode.count-=1
+                await promocode.save()
+                await order.save()
+                return order
+            else: return "sum too small for code to work"
+    return "u dont have that or it doesnt exist"
+
+@orders_router.post('/removePromocode', tags=['Orders'])
+async def removePromocode(user_id: AuthGuard = Depends(auth)):
+    order = await Order.get_or_none(user_id=user_id)
+    if not order: raise HTTPException(status_code=404, detail="No order")
+    order.promocode=None
+    order.total_sum = order.sum
+    await order.save()
+    return order

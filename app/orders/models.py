@@ -12,7 +12,7 @@ class Order(Model):
     type = fields.IntField(default=1)
     invalid_at = fields.DatetimeField()
     added_bonuses=fields.IntField(ge=0, default=0)
-    #promocode = fields.ForeignKeyField('models.PromoCodePercent', null=True)
+    promocode = fields.CharField(max_length=255, null=True)
     #0 - canceled 1 - success completion 2 - in progress, 3 expired
     status = fields.IntField(default=2)
     # 0 - наличные, 1 - картой при получении, 2 - картой на сайте (пока не делаем функционал)
@@ -20,7 +20,7 @@ class Order(Model):
     #address = fields.ForeignKeyField('models.Address')
     products_count = fields.IntField(ge=0, default=0)
     sum = fields.FloatField(ge=0, default=0)
-    #total_sum = fields.FloatField(ge=0, default=0)
+    total_sum = fields.FloatField(ge=0, default=0)
 
 class CartItem(Model):
     order = fields.ForeignKeyField('models.Order')

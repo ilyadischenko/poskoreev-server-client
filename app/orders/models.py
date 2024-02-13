@@ -8,15 +8,15 @@ class Order(Model):
     id = fields.IntField(pk=True, auto_increment=True)
     user = fields.ForeignKeyField('models.User')
     #restaurant = fields.ForeignKeyField('models.Restaurant', related_name='restaurant')
-    # items = fields.ManyToManyField('models.CartItem')
     # 0 - inside 1 - delivery 2 - pickup
     type = fields.IntField(default=1)
     invalid_at = fields.DatetimeField()
-    #time = fields.DatetimeField(null=True)
     added_bonuses=fields.IntField(ge=0, default=0)
     #promocode = fields.ForeignKeyField('models.PromoCodePercent', null=True)
-    #0 - canceled 1 - paid 2 - in progress, 3 expired
+    #0 - canceled 1 - success completion 2 - in progress, 3 expired
     status = fields.IntField(default=2)
+    # 0 - наличные, 1 - картой при получении, 2 - картой на сайте (пока не делаем функционал)
+    pay_type = fields.IntField(default=1)
     #address = fields.ForeignKeyField('models.Address')
     products_count = fields.IntField(ge=0, default=0)
     sum = fields.FloatField(ge=0, default=0)
@@ -32,10 +32,9 @@ class CartItem(Model):
 
 class OrderLog(Model):
     order_id = fields.IntField()
-    user_id = fields.IntField()
     items = fields.JSONField(null=True)
     type = fields.IntField(default=1)
-    status = fields.IntField(default=2)
     canceled_at = fields.DatetimeField(null=True)
     paid_at = fields.DatetimeField(null=True)
+    success_completion_at = fields.DatetimeField(null=True)
     created_at = fields.DatetimeField(auto_now_add=True)

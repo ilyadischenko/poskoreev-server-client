@@ -1,6 +1,6 @@
-from urllib import request
 
 from fastapi import HTTPException, APIRouter, Depends, Request, Response
+from fastapi.responses import PlainTextResponse
 from app.orders.models import Order, CartItem, OrderLog
 from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJSON
 from app.products.models import Menu
@@ -14,14 +14,13 @@ orders_router = APIRouter(
 
 
 @orders_router.get('/getOrder', tags=['Orders'])
-async def getOrder(request: Request, user_id: AuthGuard = Depends(auth)):
+async def getOrder(request: Request, response: Response, user_id: AuthGuard = Depends(auth)):
     if '_oi' not in request.cookies: raise HTTPException(status_code=404, detail="Order not found")
     order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
-    if not order: return None
-
-    # log = await OrderLog.get(order_id=order.pk)
-    # log.items = cart_list
-    # await log.save()
+    if not order:
+        # надо бы удалять куки, но я пока не пойму как
+        # response.delete_cookie('_oi')
+        raise HTTPException(status_code=404, detail="Order not found")
     return await GetOrderInJSON(order)
 
 
@@ -89,7 +88,7 @@ async def decreaseQuantity(menu_id: int,
     await CalculateOrder(order)
     return await GetOrderInJSON(order)
 
-@orders_router.delete('/removeOrder', tags=['Orders'])
+@orders_router.delete('/removeOrder', tags=['Orders dev'])
 async def removeOrder(user_id: AuthGuard = Depends(auth)):
     order = await Order.get_or_none(user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail="Nothing to remove")
@@ -99,7 +98,7 @@ async def removeOrder(user_id: AuthGuard = Depends(auth)):
     return await order.delete()
 
 
-@orders_router.post('/finishOrder', tags=['Orders'])
+@orders_router.post('/finishOrder', tags=['Orders dev'])
 async def finishOrder(user_id: AuthGuard = Depends(auth)):
     order = await Order.get_or_none(user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail="No order")

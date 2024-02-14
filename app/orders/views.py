@@ -2,7 +2,7 @@
 from fastapi import HTTPException, APIRouter, Depends, Request, Response
 from fastapi.responses import PlainTextResponse
 from app.orders.models import Order, CartItem, OrderLog
-from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJSON
+from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJSON, check_promocode
 from app.products.models import Menu
 from app.users.models import User
 from app.promocodes.models import PromoCode
@@ -25,7 +25,10 @@ async def getOrder(request: Request, response: Response, user_id: AuthGuard = De
     return await GetOrderInJSON(order)
 
 
-
+@orders_router.post('/test', tags=['Orders'])
+async def testOrder(request: Request, response: Response):
+    response.set_cookie('_oi', value="2")
+    return
 @orders_router.post('/addToOrder', tags=['Orders'])
 async def addToOrder(menu_id: int,
                      request: Request,
@@ -46,6 +49,7 @@ async def addToOrder(menu_id: int,
         cart_item.bonuses += menu_item.bonuses
         await cart_item.save()
     await CalculateOrder(order)
+    await check_promocode(order)
     return await GetOrderInJSON(order)
 
 
@@ -61,6 +65,7 @@ async def removeFromCart(menu_id: int,
     if not item: raise HTTPException(status_code=404, detail="No such product")
     await item.delete()
     await CalculateOrder(order)
+    await check_promocode(order)
     return await GetOrderInJSON(order)
 
 
@@ -85,12 +90,13 @@ async def decreaseQuantity(menu_id: int,
         cart_item.sum -= menu_item.price
         cart_item.bonuses -= menu_item.bonuses
         await cart_item.save()
-
     await CalculateOrder(order)
+    await check_promocode(order)
     return await GetOrderInJSON(order)
 
 @orders_router.delete('/removeOrder', tags=['Orders dev'])
-async def removeOrder(user_id: AuthGuard = Depends(auth)):
+async def removeOrder(request: Request, user_id: AuthGuard = Depends(auth)):
+    #order = await Order.get_or_none(order_id=request.cookies['_oi'], user_id=user_id)
     order = await Order.get_or_none(user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail="Nothing to remove")
     log = await OrderLog.get(order_id=order.pk)
@@ -103,12 +109,17 @@ async def removeOrder(user_id: AuthGuard = Depends(auth)):
 async def finishOrder(user_id: AuthGuard = Depends(auth)):
     order = await Order.get_or_none(user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail="No order")
+    await check_promocode(order)
     order.status = 1
     await order.save()
     log = await OrderLog.get(order_id=order.pk)
     log.status = 1
     log.paid_at = datetime.now()
     await log.save()
+    promocode = await PromoCode.get_or_none(short_name=order.promocode)
+    if promocode:
+        promocode.count-=1
+        await promocode.save()
     return await order.delete()
 
 @orders_router.post('/addPromocode', tags=['Orders'])
@@ -117,6 +128,8 @@ async def addPromocode(promocode : str, user_id: AuthGuard = Depends(auth)):
     if not order: raise HTTPException(status_code=404, detail="No order")
     if order.promocode: await removePromocode(user_id)
     user = await User.get(id=user_id)
+    # user_promocode = await user.get_promocode(promocode)
+    # if not user_promocode: raise HTTPException(status_code=404, detail="No promocode???")
     user_promocodes = await user.get_all_promocodes_dev()
     for i in user_promocodes:
         if promocode == i["promocode"]:
@@ -127,13 +140,16 @@ async def addPromocode(promocode : str, user_id: AuthGuard = Depends(auth)):
                     order.total_sum = order.sum - i["effect"]
                 if order.total_sum <= 0 : raise HTTPException(status_code=405, detail="what")
                 order.promocode = promocode
-                promocode = await PromoCode.get(id=i["id"])
-                promocode.count-=1
-                await promocode.save()
+                order.promocode_valid = True
                 await order.save()
-                return order
+                promocode = await PromoCode.get(id=i["id"])
+                return {"valid": order.promocode_valid,
+                        "min sum": promocode.min_sum,
+                        "effect": promocode.effect,
+                        "message": "idk"
+                        }
             else: return "sum too small for code to work"
-    return "u dont have that or it doesnt exist"
+    return "u dont have that or it doesnt exist or it expired or u just unlucky"
 
 @orders_router.post('/removePromocode', tags=['Orders'])
 async def removePromocode(user_id: AuthGuard = Depends(auth)):
@@ -141,5 +157,6 @@ async def removePromocode(user_id: AuthGuard = Depends(auth)):
     if not order: raise HTTPException(status_code=404, detail="No order")
     order.promocode=None
     order.total_sum = order.sum
+    order.promocode_valid = False
     await order.save()
     return order

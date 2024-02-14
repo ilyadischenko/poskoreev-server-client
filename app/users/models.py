@@ -14,7 +14,12 @@ class User(Model):
     telegram = fields.CharField(max_length=255, unique=True, null=True)
     promocodes = fields.ManyToManyField('models.PromoCode')
     bonuses = fields.IntField(default=0, ge=0)
-
+    # async def get_promocode(self, promocode : str):
+    #     p_id=await PromoCode.get_or_none(short_name=promocode)
+    #     if not p_id: return None
+    #     p = await self.promocodes.filter(promocode_id=p_id).first()
+    #     if not p: return None
+    #     return p.short_name
     async def get_all_promocodes(self):
         promocodes_set = await self.promocodes.filter(is_active=True)
         promocodes = []

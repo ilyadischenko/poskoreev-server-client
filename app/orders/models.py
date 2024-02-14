@@ -13,6 +13,7 @@ class Order(Model):
     invalid_at = fields.DatetimeField()
     added_bonuses=fields.IntField(ge=0, default=0)
     promocode = fields.CharField(max_length=255, null=True)
+    promocode_valid = fields.BooleanField(default=False)
     #0 - canceled 1 - success completion 2 - in progress, 3 expired
     status = fields.IntField(default=2)
     # 0 - наличные, 1 - картой при получении, 2 - картой на сайте (пока не делаем функционал)

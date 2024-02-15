@@ -12,8 +12,6 @@ class Order(Model):
     type = fields.IntField(default=1)
     invalid_at = fields.DatetimeField()
     added_bonuses=fields.IntField(ge=0, default=0)
-    promocode = fields.CharField(max_length=255, null=True)
-    promocode_valid = fields.BooleanField(default=False)
     #0 - canceled 1 - success completion 2 - in progress, 3 expired
     status = fields.IntField(default=2)
     # 0 - наличные, 1 - картой при получении, 2 - картой на сайте (пока не делаем функционал)
@@ -23,6 +21,11 @@ class Order(Model):
     sum = fields.FloatField(ge=0, default=0)
     total_sum = fields.FloatField(ge=0, default=0)
 
+    promocode = fields.CharField(null=True, max_length=255)
+    promocode_applied = fields.BooleanField(default=False)
+    promocode_linked = fields.BooleanField(default=False)
+    # element = fields.JSONField(default=None)
+
 class CartItem(Model):
     order = fields.ForeignKeyField('models.Order')
     menu = fields.ForeignKeyField('models.Menu')
@@ -30,6 +33,7 @@ class CartItem(Model):
     quantity = fields.IntField(ge=0,default=0)
     sum = fields.FloatField(ge=0,default=0)
     bonuses = fields.IntField(ge=0,default=0)
+
 
 class OrderLog(Model):
     order_id = fields.IntField()

@@ -24,11 +24,6 @@ async def getOrder(request: Request, response: Response, user_id: AuthGuard = De
         raise HTTPException(status_code=404, detail="Order not found")
     return await GetOrderInJSON(order)
 
-
-@orders_router.post('/test', tags=['Orders'])
-async def testOrder(request: Request, response: Response):
-    response.set_cookie('_oi', value="2")
-    return
 @orders_router.post('/addToOrder', tags=['Orders'])
 async def addToOrder(menu_id: int,
                      request: Request,
@@ -96,8 +91,7 @@ async def decreaseQuantity(menu_id: int,
 
 @orders_router.delete('/removeOrder', tags=['Orders dev'])
 async def removeOrder(request: Request, user_id: AuthGuard = Depends(auth)):
-    #order = await Order.get_or_none(order_id=request.cookies['_oi'], user_id=user_id)
-    order = await Order.get_or_none(user_id=user_id)
+    order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail="Nothing to remove")
     log = await OrderLog.get(order_id=order.pk)
     log.canceled_at = datetime.now()
@@ -106,8 +100,8 @@ async def removeOrder(request: Request, user_id: AuthGuard = Depends(auth)):
 
 
 @orders_router.post('/finishOrder', tags=['Orders dev'])
-async def finishOrder(user_id: AuthGuard = Depends(auth)):
-    order = await Order.get_or_none(user_id=user_id)
+async def finishOrder(request: Request, user_id: AuthGuard = Depends(auth)):
+    order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail="No order")
     await check_promocode(order)
     order.status = 1
@@ -123,10 +117,10 @@ async def finishOrder(user_id: AuthGuard = Depends(auth)):
     return await order.delete()
 
 @orders_router.post('/addPromocode', tags=['Orders'])
-async def addPromocode(promocode : str, user_id: AuthGuard = Depends(auth)):
-    order = await Order.get_or_none(user_id=user_id)
+async def addPromocode(request: Request, promocode : str, user_id: AuthGuard = Depends(auth)):
+    order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail="No order")
-    if order.promocode: await removePromocode(user_id)
+    if order.promocode: await removePromocode(request, user_id)
     user = await User.get(id=user_id)
     # user_promocode = await user.get_promocode(promocode)
     # if not user_promocode: raise HTTPException(status_code=404, detail="No promocode???")
@@ -152,8 +146,8 @@ async def addPromocode(promocode : str, user_id: AuthGuard = Depends(auth)):
     return "u dont have that or it doesnt exist or it expired or u just unlucky"
 
 @orders_router.post('/removePromocode', tags=['Orders'])
-async def removePromocode(user_id: AuthGuard = Depends(auth)):
-    order = await Order.get_or_none(user_id=user_id)
+async def removePromocode(request: Request, user_id: AuthGuard = Depends(auth)):
+    order = await Order.get_or_none(id=request.cookies['_oi'],user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail="No order")
     order.promocode=None
     order.total_sum = order.sum

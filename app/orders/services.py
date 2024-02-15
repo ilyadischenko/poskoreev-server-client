@@ -43,7 +43,7 @@ async def CalculateOrder(order):
     order.added_bonuses = bonuses
     order.sum = sum
     await order.save()
-    # return order
+    return
 
 
 async def GetOrderInJSON(order):
@@ -67,6 +67,7 @@ async def GetOrderInJSON(order):
         'total sum': order.sum if not order.total_sum else order.total_sum
     }
 async def check_promocode(order):
+    if order.promocode is None: return
     promocode = await PromoCode.get(short_name=order.promocode)
     if promocode.min_sum <= order.sum and promocode.end_day > datetime.now(timezone.utc) and promocode.count != 0:
         order.promocode_valid = True

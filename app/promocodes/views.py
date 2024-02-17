@@ -9,7 +9,9 @@ promocodes_router = APIRouter()
 
 @promocodes_router.get('/promocodes/{id}', tags=['Promocode'])
 async def view_promocode(id: int):
-    return await PromoCode.get(id=id)
+    promocode= await PromoCode.get_or_none(id=id)
+    if not promocode: raise HTTPException(status_code=404)
+    return promocode
 
 @promocodes_router.post('/promocodes/addPromocode', tags=['Promocode'])
 async def add_promocode(short_name: str, description: str, type : int, count : int, effect : float, for_all : bool,

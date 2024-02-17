@@ -13,7 +13,7 @@ orders_router = APIRouter(
 
 
 @orders_router.get('/getOrder', tags=['Orders'])
-async def getOrder(request: Request, response: Response, user_id: AuthGuard = Depends(auth)):
+async def get_order(request: Request, response: Response, user_id: AuthGuard = Depends(auth)):
     if '_oi' not in request.cookies: raise HTTPException(status_code=404, detail="Order not found")
     order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
     if not order:
@@ -30,7 +30,7 @@ async def getOrder(request: Request, response: Response, user_id: AuthGuard = De
 
 
 @orders_router.post('/addToOrder', tags=['Orders'])
-async def addToOrder(menu_id: int,
+async def add_to_order(menu_id: int,
                      request: Request,
                      response: Response,
                      user_id: AuthGuard = Depends(auth)
@@ -59,7 +59,7 @@ async def addToOrder(menu_id: int,
 
 
 @orders_router.delete('/removeFromCart', tags=['Orders'])
-async def removeFromCart(menu_id: int,
+async def remove_from_cart(menu_id: int,
                          request: Request,
                          user_id: AuthGuard = Depends(auth)
                          ):
@@ -80,7 +80,7 @@ async def removeFromCart(menu_id: int,
 
 
 @orders_router.put('/decreaseQuantity', tags=['Orders'])
-async def decreaseQuantity(menu_id: int,
+async def decrease_quantity(menu_id: int,
                            request: Request,
                            user_id: AuthGuard = Depends(auth)
                            ):
@@ -139,7 +139,7 @@ async def decreaseQuantity(menu_id: int,
 #     return await order.delete()
 
 @orders_router.post('/addPromocode', tags=['Orders'])
-async def addPromocodeRoute(promocode_short_name: str,
+async def add_promocode_route(promocode_short_name: str,
                          request: Request,
                          response: Response,
                          user_id: AuthGuard = Depends(auth)):
@@ -153,7 +153,7 @@ async def addPromocodeRoute(promocode_short_name: str,
     }
 
 @orders_router.post('/removePromocode', tags=['Orders'])
-async def removePromocode(
+async def remove_promocode(
                          request: Request,
                          user_id: AuthGuard = Depends(auth)):
     if '_oi' not in request.cookies: raise HTTPException(status_code=404, detail="Order not found")

@@ -44,8 +44,7 @@ async def confirm_code(number: str, code: str, response: Response):
             'email': user.email,
             'telegram': user.telegram,
             'promocodes': await user.get_all_promocodes(),
-            'bonuses': user.bonuses,
-            }
+            'bonuses': user.bonuses}
 
 
 @user_router.post('/exit', tags=['Users'])
@@ -103,14 +102,14 @@ async def delete_user(number: str):
 
 
 @user_router.post('/dev/banUser', tags=['dev'])
-async def banUser(id: int):
+async def ban_user(id: int):
     if not (await UserBlacklist.create(user_id=id)): raise HTTPException(status_code=400,
                                                                          detail="oops something went wrong")
     return f"user {id} banned"
 
 
 @user_router.delete('/dev/unbanUser', tags=['dev'])
-async def unbanUser(id: int):
+async def unban_user(id: int):
     if not (await UserBlacklist.filter(user_id=id).delete()): raise HTTPException(status_code=400,
                                                                                   detail="oops something went wrong")
     return f"user {id} unbanned"

@@ -8,8 +8,14 @@ from app.users.models import User
 
 
 async def OrderCheckOrCreate(cookies, user_id, response):
+    if '_ri' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick restaurant')
+    if '_ai' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick address')
+    _rid = cookies['_ri']
+    _aid = cookies['_ai']
+    rid=int(_rid)
+    aid=int(_aid)
     if '_oi' not in cookies:
-        order = await Order.create(user_id=user_id,
+        order = await Order.create(restaurant_id=rid, address_id=aid, user_id=user_id,
                                    invalid_at=datetime.now() + timedelta(days=1))
         await OrderLog.create(order_id=order.pk)
         await order.save()
@@ -17,7 +23,7 @@ async def OrderCheckOrCreate(cookies, user_id, response):
         return order
     order = await Order.get_or_none(id=cookies['_oi'], user=user_id)
     if not order:
-        order = await Order.create(user_id=user_id,
+        order = await Order.create(restaurant_id=rid, address_id=aid, user_id=user_id,
                                    invalid_at=datetime.now() + timedelta(days=1))
         await OrderLog.create(order_id=order.pk)
         response.set_cookie('_oi', order.id, httponly=True, samesite='none', secure=True)
@@ -25,13 +31,25 @@ async def OrderCheckOrCreate(cookies, user_id, response):
         log = await OrderLog.get(order_id=order.id)
         log.status = 3
         await log.save()
-        order = await Order.create(user_id=user_id,
+        order = await Order.create(restaurant_id=rid, address_id=aid, user_id=user_id,
                                    invalid_at=datetime.now() + timedelta(days=1))
         await OrderLog.create(order_id=order.pk)
         response.set_cookie('_oi', order.id, httponly=True, samesite='none', secure=True)
+    await validate_order(cookies, order)
     return order
 
-
+async def validate_order(cookies, order):
+    if '_ri' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick restaurant')
+    if '_ai' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick address')
+    _rid = cookies['_ri']
+    _aid = cookies['_ai']
+    rid=int(_rid)
+    aid=int(_aid)
+    if order.restaurant_id!=rid: raise HTTPException(status_code=400, detail="switch to right one or delete")
+    if order.address_id!=aid:
+        order.address_id=aid
+        await order.save()
+    return
 async def CalculateOrder(order):
     sum = 0
     count = 0

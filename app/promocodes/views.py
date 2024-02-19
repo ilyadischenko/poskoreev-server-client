@@ -47,15 +47,6 @@ async def change_promocode(promocode_id : int, short_name: str, description: str
                         start_day : datetime, end_day : datetime, min_sum : float, is_active : bool):
     promocode = await PromoCode.get_or_none(id=promocode_id)
     if not promocode: raise HTTPException(status_code=404, detail=f'promocode {promocode_id} not found')
-    promocode.short_name=short_name
-    promocode.description=description
-    promocode.type=type
-    promocode.count=count
-    promocode.effect=effect
-    promocode.for_all=for_all,
-    promocode.start_day=start_day
-    promocode.end_day=end_day
-    promocode.min_sum=min_sum
-    promocode.is_active=is_active
-    await promocode.save()
-    return promocode
+    return await PromoCode.filter(id=promocode_id).update(short_name=short_name, description=description, type=type, count=count,
+                                                          effect=effect, for_all=for_all, start_day=start_day, end_day=end_day,
+                                                          min_sum=min_sum, is_active=is_active)

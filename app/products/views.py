@@ -8,8 +8,10 @@ products_router = APIRouter(
 
 
 @products_router.get('/', tags=['Products'])
-async def get_product():
-    menu = await Menu.all().order_by('size').filter(visible=True).prefetch_related('product', 'category')
+async def get_product(request: Request):
+    rid = request.cookies['_ri']
+    if not rid: raise HTTPException(status_code=400, detail="PLEASE pick restaurant")
+    menu = await Menu.filter(restaurant_id=int(rid)).order_by('size').filter(visible=True).prefetch_related('product', 'category')
     products_dict = {}
 
     for i in menu:
@@ -59,5 +61,5 @@ async def add_product_type(type: str):
 
 
 @products_router.post('/addMenuItem', tags=['Products'])
-async def add_menu_item(product: int, type: int, price: int, size: int, unit: str):
-    return await Menu.create(product_id=product, category_id=type, price=price, size=size, unit=unit)
+async def add_menu_item(restaurant_id: int, product: int, type: int, price: int, size: int, unit: str):
+    return await Menu.create(restaurant_id=restaurant_id, product_id=product, category_id=type, price=price, size=size, unit=unit)

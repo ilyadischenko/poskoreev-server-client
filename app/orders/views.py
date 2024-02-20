@@ -127,34 +127,6 @@ async def decrease_quantity(menu_id: int,
     }
 
 
-# @orders_router.delete('/removeOrder', tags=['Orders dev'])
-# async def removeOrder(request: Request, user_id: AuthGuard = Depends(auth)):
-#     #order = await Order.get_or_none(order_id=request.cookies['_oi'], user_id=user_id)
-#     order = await Order.get_or_none(user_id=user_id)
-#     if not order: raise HTTPException(status_code=404, detail="Nothing to remove")
-#     log = await OrderLog.get(order_id=order.pk)
-#     log.canceled_at = datetime.now()
-#     await log.save()
-#     return await order.delete()
-
-
-# @orders_router.post('/finishOrder', tags=['Orders dev'])
-# async def finishOrder(user_id: AuthGuard = Depends(auth)):
-#     order = await Order.get_or_none(user_id=user_id)
-#     if not order: raise HTTPException(status_code=404, detail="No order")
-#     await check_promocode(order)
-#     order.status = 1
-#     await order.save()
-#     log = await OrderLog.get(order_id=order.pk)
-#     log.status = 1
-#     log.paid_at = datetime.now()
-#     await log.save()
-#     promocode = await PromoCode.get_or_none(short_name=order.promocode)
-#     if promocode:
-#         promocode.count-=1
-#         await promocode.save()
-#     return await order.delete()
-
 @orders_router.post('/addPromocode', tags=['Orders'])
 async def add_promocode_route(promocode_short_name: str,
                          request: Request,
@@ -176,14 +148,9 @@ async def remove_promocode(
     if '_oi' not in request.cookies: raise HTTPException(status_code=404, detail="Order not found")
     order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
     await validate_order(request.cookies, order)
-    if not order: raise HTTPException(status_code=404, detail="No order")
+        item.quantity -= 1
+        item.sum -= product.price
+        await item.save()
+        await order.items.add(item)
+    return await getOrder(user_id)
 
-    order.promocode = None
-    await order.save()
-    promocode = await AddPromocode(order, order.promocode, user_id)
-    order = await GetOrderInJSON(order)
-
-    return {
-        'order': order,
-        'promocode': promocode
-    }

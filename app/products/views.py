@@ -50,16 +50,16 @@ async def get_product(request: Request):
     return {"products": products}
 
 
-@products_router.post('/addProduct', tags=['Products'])
-async def add_product(title: str, description: str):
-    return await Product.create(title=title, description=description)
-
-
-@products_router.post('/addProductType', tags=['Products'])
-async def add_product_type(type: str):
-    return await ProductCategory.create(type=type)
-
-
-@products_router.post('/addMenuItem', tags=['Products'])
-async def add_menu_item(restaurant_id: int, product: int, type: int, price: int, size: int, unit: str):
-    return await Menu.create(restaurant_id=restaurant_id, product_id=product, category_id=type, price=price, size=size, unit=unit)
+# @products_router.post('/addProduct', tags=['Products'])
+# async def add_product(title: str, description: str):
+#     return await Product.create(title=title, description=description)
+#
+#
+# @products_router.post('/addProductType', tags=['Products'])
+# async def add_product_type(type: str):
+#     return await ProductCategory.create(type=type)
+#
+#
+# @products_router.post('/addMenuItem', tags=['Products'])
+# async def add_menu_item(restaurant_id: int, product: int, type: int, price: int, size: int, unit: str):
+#     return await Menu.create(restaurant_id=restaurant_id, product_id=product, category_id=type, price=price, size=size, unit=unit)

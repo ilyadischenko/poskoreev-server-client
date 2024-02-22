@@ -11,23 +11,23 @@ orders_router = APIRouter(
 )
 
 
-@orders_router.post('/pickRestaurant', tags=['Orders'])
-async def pick_restaurant(restaurant_id: int, response: Response):
-    restaurant = await Restaurant.get_or_none(id=restaurant_id)
-    if not restaurant: raise HTTPException(status_code=404, detail="Restaurant not found")
-    response.set_cookie('_ri', value=restaurant.pk, httponly=True, samesite='none', secure=True)
-    return
-
-
-@orders_router.post('/pickAdress', tags=['Orders'])
-async def pick_address(street: str, response: Response, request: Request):
-    rid = request.cookies['_ri']
-    if not rid: raise HTTPException(status_code=400, detail="PLEASE pick restaurant")
-    address = await Address.get_or_none(street=street, restaurant_id=int(rid))
-    if not address: raise HTTPException(status_code=400, detail="doesnt exist or unreachable by this restaurant")
-    if not address.available: raise HTTPException(status_code=400, detail="temporally(hopefully) unavailable")
-    response.set_cookie('_ai', value=address.pk, httponly=True, samesite='none', secure=True)
-    return
+# @orders_router.post('/pickRestaurant', tags=['Orders'])
+# async def pick_restaurant(restaurant_id: int, response: Response):
+#     restaurant = await Restaurant.get_or_none(id=restaurant_id)
+#     if not restaurant: raise HTTPException(status_code=404, detail="Restaurant not found")
+#     response.set_cookie('_ri', value=restaurant.pk, httponly=True, samesite='none', secure=True)
+#     return
+#
+#
+# @orders_router.post('/pickAdress', tags=['Orders'])
+# async def pick_address(street: str, response: Response, request: Request):
+#     rid = request.cookies['_ri']
+#     if not rid: raise HTTPException(status_code=400, detail="PLEASE pick restaurant")
+#     address = await Address.get_or_none(street=street, restaurant_id=int(rid))
+#     if not address: raise HTTPException(status_code=400, detail="doesnt exist or unreachable by this restaurant")
+#     if not address.available: raise HTTPException(status_code=400, detail="temporally(hopefully) unavailable")
+#     response.set_cookie('_ai', value=address.pk, httponly=True, samesite='none', secure=True)
+#     return
 
 
 @orders_router.get('/getOrder', tags=['Orders'])

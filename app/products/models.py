@@ -18,7 +18,7 @@ class Menu(Model):
     unit = fields.CharField(max_length=255, default=0)
     size = fields.IntField(ge=0, default=0)
     bonuses = fields.IntField(ge=0, default=0)
-    visible = fields.BooleanField(default=True)
+    visible = fields.BooleanField(default=False)
     in_stock = fields.BooleanField(default=True)
 
 

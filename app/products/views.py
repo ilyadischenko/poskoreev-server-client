@@ -9,9 +9,9 @@ products_router = APIRouter(
 
 @products_router.get('/', tags=['Products'])
 async def get_product(request: Request):
+    if '_ri' not in request.cookies: raise HTTPException(status_code=400, detail="PLEASE pick restaurant")
     rid = request.cookies['_ri']
-    if not rid: raise HTTPException(status_code=400, detail="PLEASE pick restaurant")
-    menu = await Menu.filter(restaurant_id=int(rid)).order_by('size').filter(visible=True).prefetch_related('product', 'category')
+    menu = await Menu.filter(restaurant_id=int(rid)).order_by('size').filter(visible=True, in_stock=True).prefetch_related('product', 'category')
     products_dict = {}
 
     for i in menu:

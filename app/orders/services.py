@@ -35,21 +35,21 @@ async def OrderCheckOrCreate(cookies, user_id, response):
                                    invalid_at=datetime.now() + timedelta(days=1))
         await OrderLog.create(order_id=order.pk)
         response.set_cookie('_oi', order.id, httponly=True, samesite='none', secure=True)
-    await validate_order(cookies, order)
+    # await validate_order(cookies, order)
     return order
 
-async def validate_order(cookies, order):
-    if '_ri' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick restaurant')
-    if '_ai' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick address')
-    _rid = cookies['_ri']
-    _aid = cookies['_ai']
-    rid=int(_rid)
-    aid=int(_aid)
-    if order.restaurant_id!=rid: raise HTTPException(status_code=400, detail="switch to right one or delete")
-    if order.address_id!=aid:
-        order.address_id=aid
-        await order.save()
-    return
+# async def validate_order(cookies, order):
+#     if '_ri' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick restaurant')
+#     if '_ai' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick address')
+#     _rid = cookies['_ri']
+#     _aid = cookies['_ai']
+#     rid=int(_rid)
+#     aid=int(_aid)
+#     if order.restaurant_id!=rid: raise HTTPException(status_code=400, detail="switch to right one or delete")
+#     if order.address_id!=aid:
+#         order.address_id=aid
+#         await order.save()
+#     return
 async def CalculateOrder(order):
     sum = 0
     count = 0
@@ -182,38 +182,5 @@ async def AddPromocode(order, promocode, user_id):
             'message': 'Промокод применён',
         }
 
-async def check_promocode(order):
-    print(order.promocode)
-    promocode = None
-    if order.promocode == None:
-        return None
-
-    promocode = await PromoCode.get_or_none(short_name=order.promocode)
-    if not promocode:
-        order.promocode_valid = False
-        order.total_sum = order.sum
-        await order.save()
-        return None
-
-    if promocode.min_sum >= order.sum or promocode.end_day < datetime.now(timezone.utc) or promocode.count == 0:
-        order.promocode_valid = False
-        order.total_sum = order.sum
-        await order.save()
-        return None
-
-    if promocode.type == 2:
-        order.total_sum = round(order.sum * (1 - promocode.effect * 0.01), 2)
-        order.promocode_valid = True
-    elif promocode.type == 3:
-        # if promocode.effect < order.sum:
-        order.total_sum = order.sum - promocode.effect
-        order.promocode_valid = True
-    await order.save()
-
-
-    # if (not order.promocode) or (not order.promocode_valid):
-    #     order.total_sum = order.sum
-    #     await order.save()
-    #     return
 
 

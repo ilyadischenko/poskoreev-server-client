@@ -1,11 +1,11 @@
-from fastapi import HTTPException, APIRouter, Response, Depends
+from fastapi import HTTPException, APIRouter, Request, Response, Depends
 from tzlocal import get_localzone
 from datetime import datetime, timedelta, timezone
 
 from app.users.models import User, UserJWT, UserBlacklist
 from app.users.service import AuthGuard, auth, validate_number
 from app.users.sms import send_sms
-from app.auth.jwt_handler import generateJWT
+from app.auth.jwt_handler import generateJWT, decodeJWT
 from app.promocodes.models import PromoCode
 
 user_router = APIRouter(
@@ -16,18 +16,55 @@ user_router = APIRouter(
 @user_router.get('/', tags=['Users'])
 async def get_user(
         response: Response,
-        user_id: AuthGuard = Depends(auth)
+        request: Request,
 ):
-    user = await User.get_or_none(id=user_id)
-    if not user:
-        response.delete_cookie('_at', httponly=False, samesite='none', secure=True)
-        response.delete_cookie('_oi', httponly=False, samesite='none', secure=True)
-        raise HTTPException(status_code=404, detail=f"user with number {user_id} not found")
-    return {'number': "8" + user.number,
-            'email': user.email,
-            'telegram': user.telegram,
-            'promocodes': await user.get_all_promocodes(),
-            'bonuses': user.bonuses}
+    is_pick_city = True
+    is_pick_street = True
+    is_auth = True
+
+    number = ''
+    email = ''
+    telegram = ''
+    promocodes = ''
+    bonuses = ''
+
+    # decoded_code = None
+    if '_at' not in request.cookies:
+        is_auth = False
+    else:
+        decoded_code = await decodeJWT(request.cookies.get('_at'))
+        if not decoded_code:
+            is_auth = False
+        else:
+            user = await User.get_or_none(id=decoded_code['id'])
+            if not user:
+                response.delete_cookie('_at', httponly=False, samesite='none', secure=True)
+                response.delete_cookie('_oi', httponly=False, samesite='none', secure=True)
+                is_auth = False
+            else:
+                number = str('8' + user.number)
+                email = user.email
+                telegram = user.telegram
+                promocodes = await user.get_all_promocodes()
+                bonuses = user.bonuses
+
+
+    if '_ci' not in request.cookies:
+        is_pick_city = False
+    if '_ri' not in request.cookies or '_si' not in request.cookies:
+        is_pick_street = False
+
+
+
+    return {'number': number,
+            'email': email,
+            'telegram': telegram,
+            'promocodes': promocodes,
+            'bonuses': bonuses,
+            'is_auth': is_auth,
+            'pick_city': is_pick_city,
+            'pick_street': is_pick_street
+            }
 
 
 @user_router.post('/confirmcode', tags=['Users'])

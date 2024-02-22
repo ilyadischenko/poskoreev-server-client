@@ -7,7 +7,7 @@ from tortoise.fields import JSONField
 class Order(Model):
     id = fields.IntField(pk=True, auto_increment=True)
     user = fields.ForeignKeyField('models.User')
-    restaurant = fields.OneToOneField('models.Restaurant')
+    restaurant = fields.ForeignKeyField('models.Restaurant')
     # 0 - inside 1 - delivery 2 - pickup
     type = fields.IntField(default=1)
     invalid_at = fields.DatetimeField()
@@ -16,15 +16,20 @@ class Order(Model):
     status = fields.IntField(default=2)
     # 0 - наличные, 1 - картой при получении, 2 - картой на сайте (пока не делаем функционал)
     pay_type = fields.IntField(default=1)
-    address = fields.OneToOneField('models.Address')
     products_count = fields.IntField(ge=0, default=0)
     sum = fields.FloatField(ge=0, default=0)
     total_sum = fields.FloatField(ge=0, default=0)
 
+    address = fields.ForeignKeyField('models.Address')
+    house = fields.CharField(max_length=255, null=True)
+    entrance = fields.CharField(max_length=255, null=True)
+    floor = fields.CharField(max_length=255, null=True)
+    apartment = fields.CharField(max_length=255, null=True)
+    comment = fields.CharField(max_length=255, null=True)
+
     promocode = fields.CharField(null=True, max_length=255)
     promocode_applied = fields.BooleanField(default=False)
     promocode_linked = fields.BooleanField(default=False)
-    # element = fields.JSONField(default=None)
 
 class CartItem(Model):
     order = fields.ForeignKeyField('models.Order')

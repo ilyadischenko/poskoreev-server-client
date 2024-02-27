@@ -1,6 +1,6 @@
 from tortoise import Model, fields
 
-class Cities(Model):
+class City(Model):
     id = fields.IntField(pk=True)
     name = fields.CharField(max_length=255, default='')
 
@@ -10,7 +10,7 @@ class Address(Model):
     street = fields.CharField(max_length=255, unique=True)
     available = fields.BooleanField(default=True)
     restaurant = fields.ForeignKeyField('models.Restaurant')
-    city = fields.ForeignKeyField('models.Cities')
+    city = fields.ForeignKeyField('models.City')
 
 
 
@@ -23,7 +23,7 @@ class Restaurant(Model):
     pickup = fields.BooleanField(default=False)
     inside = fields.BooleanField(default=False)
     working = fields.BooleanField(default=True)
-    city = fields.ForeignKeyField('models.Cities')
+    city = fields.ForeignKeyField('models.City')
     min_sum = fields.IntField(default=0, ge=0)
 
 

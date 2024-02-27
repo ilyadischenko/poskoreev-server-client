@@ -1,7 +1,7 @@
 import datetime
 
 from fastapi import HTTPException, APIRouter, Request, Response
-from app.restaurants.models import Restaurant, Address, Cities
+from app.restaurants.models import Restaurant, Address, City
 
 restaurant_router = APIRouter()
 
@@ -9,15 +9,16 @@ restaurant_router = APIRouter()
 @restaurant_router.get('/getcities', tags=['Restaurants'])
 async def get_cities():
     # add sort
-    return await Cities.all()
+    return await City.all()
 
 
 @restaurant_router.post('/setcity', tags=['Restaurants'])
 async def set_city(city: int, response: Response):
     # проверить на наличие рестика
-    query = await Cities.get_or_none(id=city)
+    query = await City.get_or_none(id=city)
     if query is None: raise HTTPException(status_code=404, detail='City not found')
     response.set_cookie('_ci', city, httponly=True, samesite='none', secure=True)
+    return query
 
 
 @restaurant_router.get('/getstreets', tags=['Restaurants'])

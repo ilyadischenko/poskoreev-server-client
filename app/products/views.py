@@ -19,7 +19,8 @@ async def get_product(request: Request):
         if type not in products_dict:
             products_dict[type] = {
                 "type": type,
-                "items": []
+                "items": [],
+                "priority": i.category.priority
             }
 
         existing_item = next((item for item in products_dict[type]["items"] if item["title"] == i.product.title), None)
@@ -32,7 +33,6 @@ async def get_product(request: Request):
             existing_item["sizes"].append(i.size)
             existing_item["units"].append(i.unit)
         else:
-            # Create a new item
             products_dict[type]["items"].append({
                 "title": i.product.title,
                 "img": i.product.img,
@@ -44,10 +44,9 @@ async def get_product(request: Request):
                 "sizes": [i.size],
                 "units": [i.unit]
             })
-    # Convert dictionary values to a list
-    p=dict(sorted(products_dict.items()))
-    products = list(p.values())
-    return {"products": products}
+    p=sorted(products_dict.values(), key=lambda x: x["priority"])
+    clean = [{k: v for k, v in product.items() if k != "priority"} for product in p]
+    return {"products": clean}
 
 
 # @products_router.post('/addProduct', tags=['Products'])

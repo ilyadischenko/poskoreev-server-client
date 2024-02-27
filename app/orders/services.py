@@ -82,11 +82,20 @@ async def GetOrderInJSON(order):
         'bonuses': order.added_bonuses,
         'product_count': order.products_count,
         'sum': order.sum,
-        # 'promocode': order.promocode,
+        'promocode': order.promocode,
         'valid': order.promocode_applied,
         'total sum': order.sum if not order.total_sum else order.total_sum
     }
 
+async def validate_menu(order):
+    list = []
+    items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu')
+    if not items: raise HTTPException(status_code=400, detail= "empty order")
+    for item in items:
+        if not item.menu.in_stock or not item.menu.visible:
+            list.append({'id': item.menu_id})
+            raise HTTPException(status_code=400, detail={"these items arent viable": list})
+    return
 
 async def AddPromocode(order, promocode, user_id):
     short_promocode = promocode
@@ -132,7 +141,7 @@ async def AddPromocode(order, promocode, user_id):
                 'message': 'Такого промокода не существует',
             }
 
-    if promocode.count < 1 or promocode.end_day < datetime.now(timezone.utc) or promocode.start_day > datetime.now(timezone.utc):
+    if promocode.count == 0 or promocode.end_day < datetime.now(timezone.utc) or promocode.start_day > datetime.now(timezone.utc):
         order.total_sum = order.sum
         order.promocode_applied = False
         order.promocode = None
@@ -182,5 +191,74 @@ async def AddPromocode(order, promocode, user_id):
             'message': 'Промокод применён',
         }
 
+async def validate_promocode(order, promocode, user_id):
+    short_promocode = promocode
+    promocode = await PromoCode.get_or_none(short_name=promocode)
+    if not promocode:
+        order.total_sum = order.sum
+        order.promocode_applied = False
+        order.promocode = None
+        order.promocode_linked = False
+        await order.save()
+        raise HTTPException(status_code=400, detail={
+            'promocode': short_promocode,
+            'applied': False,
+            'linked': False,
+            'message': 'Такого промокода не существует',
+        })
+    # Проверка на привязку промокода юзеру если он не для всех
+    if not promocode.for_all:
+        user = await User.get(id=user_id).prefetch_related('promocodes')
+        user_promocode = await user.promocodes.filter(id=promocode.id)
+        if len(user_promocode) == 0:
+            order.total_sum = order.sum
+            order.promocode_applied = False
+            order.promocode = None
+            order.promocode_linked = False
+            await order.save()
+            raise HTTPException(status_code=400, detail= {
+                'promocode': short_promocode,
+                'applied': False,
+                'linked': False,
+                'message': 'Такого промокода не существует',
+            })
 
+    if promocode.count==0 or promocode.end_day < datetime.now(timezone.utc) or promocode.start_day > datetime.now(timezone.utc):
+        order.total_sum = order.sum
+        order.promocode_applied = False
+        order.promocode = None
+        order.promocode_linked = False
+        await order.save()
+        raise HTTPException(status_code=400, detail= {
+            'promocode': short_promocode,
+            'applied': False,
+            'linked': False,
+            'message': 'Промокод недействителен',
+        })
+    if promocode.min_sum > order.sum:
+        order.total_sum = order.sum
+        order.promocode_applied = False
+        order.promocode = short_promocode
+        order.promocode_linked = True
+        await order.save()
+        raise HTTPException(status_code=400, detail= {
+            'promocode': short_promocode,
+            'applied': False,
+            'linked': True,
+            'message': f'Минимальная сумма заказа для приминения промокода {promocode.min_sum}',
+        })
 
+    if promocode.type == 2:
+        order.total_sum = round(order.sum * (1 - promocode.effect * 0.01), 2)
+        order.promocode_applied = True
+        order.promocode_linked = True
+        order.promocode = short_promocode
+        await order.save()
+        return
+    elif promocode.type == 3:
+        order.total_sum = order.sum - promocode.effect
+        order.promocode_applied = True
+        order.promocode_linked = True
+        order.promocode = short_promocode
+        await order.save()
+        return

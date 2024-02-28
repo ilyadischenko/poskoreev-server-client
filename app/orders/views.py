@@ -1,6 +1,7 @@
 from fastapi import HTTPException, APIRouter, Depends, Request, Response
 from app.orders.models import Order, CartItem, OrderLog
-from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJSON, AddPromocode, validate_menu, validate_promocode
+from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJSON, AddPromocode, validate_menu, \
+    validate_promocode
 from app.products.models import Menu
 from app.restaurants.models import Restaurant, Address
 from app.users.models import User
@@ -12,12 +13,13 @@ orders_router = APIRouter(
     prefix="/api/v1/orders"
 )
 
+
 @orders_router.get('/getOrder', tags=['Orders'])
 async def get_order(request: Request, responce: Response, user_id: AuthGuard = Depends(auth)):
     if '_oi' not in request.cookies: raise HTTPException(status_code=404, detail="Order not found")
     order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
     if not order:
-        #чтобы удалить куки нужен пост мб но я пока не понял зачем их удалять
+        # чтобы удалить куки нужен пост мб но я пока не понял зачем их удалять
         raise HTTPException(status_code=404, detail="Order not found")
 
     promocode = await AddPromocode(order, order.promocode, user_id)
@@ -26,10 +28,12 @@ async def get_order(request: Request, responce: Response, user_id: AuthGuard = D
         'order': order,
         'promocode': promocode
     }
+
+
 @orders_router.get('/checkActiveOrders', tags=['Orders'])
 async def check_active_orders(user_id: AuthGuard = Depends(auth)):
     active_orders = await Order.filter(user_id=user_id, status=1)
-    responce_list=[]
+    responce_list = []
     if not active_orders: return responce_list
     for order in active_orders:
         cart_list = []
@@ -52,80 +56,86 @@ async def check_active_orders(user_id: AuthGuard = Depends(auth)):
             'total sum': order.sum if not order.total_sum else order.total_sum,
             'payment type': order.pay_type,
             'type': order.type,
-            'address': {'street id':order.address_id, 'house': order.house, 'entrance': order.entrance, 'floor': order.floor, 'apartment': order.apartment},
+            'address': {'street id': order.address_id, 'house': order.house, 'entrance': order.entrance,
+                        'floor': order.floor, 'apartment': order.apartment},
             'restaurant id': order.restaurant_id,
             'comment': order.comment
         })
     return responce_list
+
+
 @orders_router.delete('/cancelOrder', tags=['Orders'])
 async def cancel_order(order_id: int, user_id: AuthGuard = Depends(auth)):
     order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail="Order finished")
-    if order.status!=1: return "order isnt finished"
-    log=await OrderLog.get(order_id=order_id)
-    log.canceled_at=datetime.now()
+    if order.status != 1: return "order isnt finished"
+    log = await OrderLog.get(order_id=order_id)
+    log.canceled_at = datetime.now()
     await log.save()
-    order.status=0
+    order.status = 0
     user = await User.get(id=user_id)
-    user.bonuses-=order.added_bonuses
+    user.bonuses -= order.added_bonuses
     await user.save()
     if order.promocode_applied:
         promocode = await PromoCode.get(short_name=order.promocode)
-        promocode.count+=1
+        promocode.count += 1
         await promocode.save()
     await order.save()
     # send_to_tg
     await order.delete()
 
+
 @orders_router.post('/finishOrder', tags=['Orders'])
-async def finish_order(type: int, pay_type: int, comment: str, house: str, entrance: str, appartment: str, floor: str, request: Request,
+async def finish_order( pay_type: int, comment: str, house: str, entrance: str, appartment: str, floor: str,
+                       request: Request,
                        response: Response,
                        user_id: AuthGuard = Depends(auth)):
     if '_at' not in request.cookies: raise HTTPException(status_code=401, detail="unauthorized")
-    if '_oi' not in request.cookies: return "make order first"
-    if '_ci' not in request.cookies: return "pick city"
-    if '_ri' not in request.cookies: return "pick restaurant"
-    if '_si' not in request.cookies: return "pick street"
-    if type<0 or type>2: return "please pick correct type (0 - inside, 1 - delivery, 2 - pickup)"
-    if pay_type < 0 or pay_type > 1: return "please pick correct payment variant (0 - cash, 1 - card)"
+    if '_oi' not in request.cookies: raise HTTPException(status_code=400, detail="make order first")
+    if '_ci' not in request.cookies: raise HTTPException(status_code=400, detail="pick city")
+    if '_ri' not in request.cookies: raise HTTPException(status_code=400, detail="pick restaurant")
+    if '_si' not in request.cookies: raise HTTPException(status_code=400, detail="pick street")
+    if pay_type < 0 or pay_type > 1: raise HTTPException(status_code=400, detail="please pick correct payment variant (0 - cash, 1 - card)")
     order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
-    if not order: return "make an order first"
+    if not order: raise HTTPException(status_code=400, detail="make an order first")
     await validate_menu(order)
     if order.invalid_at <= datetime.now(tz=timezone.utc):
         log = await OrderLog.get(order_id=order.id)
         log.status = 3
         await log.save()
-    street_query = await Address.get_or_none(id=int(request.cookies['_si']), available=True, city_id=int(request.cookies['_ci']), restaurant_id=int(request.cookies['_ri']))
-    if street_query is None: return "address isnt viable anymore"
-    r=await Restaurant.get(id=int(request.cookies['_ri']), city_id=int(request.cookies['_ci']))
-    if r.closed < datetime.now(timezone.utc).timetz(): return f"this restaurant was closed at {r.closed}"
-    if type==2 and r.closed-timedelta(minutes=20) < datetime.now(timezone.utc).timetz(): return f"too late to eat inside, restaurant will be closed at {r.closed}"
-    if not r.working: return "this restaurant isnt working"
-    if not(type==0 and r.inside or type==1 and r.delivery or type==2 and r.inside): return "this restaurant doesnt support this type"
+    street_query = await Address.get_or_none(id=int(request.cookies['_si']), available=True,
+                                             city_id=int(request.cookies['_ci']),
+                                             restaurant_id=int(request.cookies['_ri']))
+    if street_query is None: raise HTTPException(status_code=400, detail="address isnt viable anymore")
+    r = await Restaurant.get(id=int(request.cookies['_ri']), city_id=int(request.cookies['_ci']))
+    if r.closed < datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail=f"this restaurant was closed at {r.closed}")
+    if r.open > datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail=f"this restaurant will be opened at {r.open}")
+    if not r.working: raise HTTPException(status_code=400, detail="this restaurant isnt working")
+    type = 1
+    if not r.delivery: raise HTTPException(status_code=400, detail="this restaurant doesnt support this type")
+
     await CalculateOrder(order)
-    if r.min_sum > order.sum: return f"too cheap min sum {r.min_sum} while yours {order.sum}"
+
+    if r.min_sum > order.sum: raise HTTPException(status_code=400, detail=f"too cheap min sum {r.min_sum} while yours {order.sum}")
     if order.promocode: await validate_promocode(order, order.promocode, user_id)
     log = await OrderLog.get(order_id=order.id)
-    log.items=await GetOrderInJSON(order)
-    log.type=type
-    log.success_completion_at=datetime.now()
+    log.items = await GetOrderInJSON(order)
+    log.type = type
+    log.success_completion_at = datetime.now()
     await log.save()
-    order.comment=comment
-    order.house=house
-    order.entrance=entrance
+    order.comment = comment
+    order.house = house
+    order.entrance = entrance
     order.apartment = appartment
-    order.floor=floor
-    order.status=1
+    order.floor = floor
+    order.status = 1
     await order.save()
-    user=await User.get(id=user_id)
-    user.bonuses+=order.added_bonuses
-    await user.save()
     if order.promocode_applied:
         promocode = await PromoCode.get(short_name=order.promocode)
-        promocode.count-=1
+        promocode.count -= 1
         await promocode.save()
     response.delete_cookie('_oi')
-    #send_order_to_tg
+    # send_order_to_tg
     return "done"
 
 

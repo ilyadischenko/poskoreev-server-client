@@ -44,8 +44,8 @@ async def set_street(street: int, request: Request, response: Response):
     if street_query is None:
         raise HTTPException(status_code=404, detail='street not found')
     if '_ri' in request.cookies and '_oi' in request.cookies and street_query.restaurant_id!=int(request.cookies['_ri']):
-        await Order.filter(id=int(request.cookies['_oi'])).delete()
-        await OrderLog.filter(order_id=int(request.cookies['_oi'])).delete()
+        # await Order.filter(id=int(request.cookies['_oi'])).delete()
+        # await OrderLog.filter(order_id=int(request.cookies['_oi'])).delete()
         response.delete_cookie('_oi')
     response.set_cookie('_ri', str(street_query.restaurant_id))
     response.set_cookie('_si', str(street))

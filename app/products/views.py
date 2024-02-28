@@ -9,9 +9,12 @@ products_router = APIRouter(
 
 @products_router.get('/', tags=['Products'])
 async def get_product(request: Request):
-    if '_ri' not in request.cookies: raise HTTPException(status_code=400, detail="PLEASE pick restaurant")
-    rid = request.cookies['_ri']
-    menu = await Menu.filter(restaurant_id=int(rid)).order_by('size').filter(visible=True, in_stock=True).prefetch_related('product', 'category')
+    if '_ri' not in request.cookies:
+        rid = 1
+    else:
+        rid = request.cookies['_ri']
+
+    menu = await Menu.filter(restaurant_id=int(rid)).order_by('size').filter(visible=True).prefetch_related('product', 'category')
     products_dict = {}
 
     for i in menu:
@@ -48,17 +51,3 @@ async def get_product(request: Request):
     clean = [{k: v for k, v in product.items() if k != "priority"} for product in p]
     return {"products": clean}
 
-
-# @products_router.post('/addProduct', tags=['Products'])
-# async def add_product(title: str, description: str):
-#     return await Product.create(title=title, description=description)
-#
-#
-# @products_router.post('/addProductType', tags=['Products'])
-# async def add_product_type(type: str):
-#     return await ProductCategory.create(type=type)
-#
-#
-# @products_router.post('/addMenuItem', tags=['Products'])
-# async def add_menu_item(restaurant_id: int, product: int, type: int, price: int, size: int, unit: str):
-#     return await Menu.create(restaurant_id=restaurant_id, product_id=product, category_id=type, price=price, size=size, unit=unit)

@@ -18,7 +18,7 @@ async def OrderCheckOrCreate(cookies, user_id, response):
         order = await Order.create(restaurant_id=rid, address_id=sid, user_id=user_id,
                                    invalid_at=datetime.now() + timedelta(days=1))
         await OrderLog.create(order_id=order.pk)
-        await order.save()
+
         response.set_cookie('_oi', value=order.id, httponly=True, samesite='none', secure=True)
         return order
     order = await Order.get_or_none(id=cookies['_oi'], user=user_id)
@@ -35,8 +35,8 @@ async def OrderCheckOrCreate(cookies, user_id, response):
                                    invalid_at=datetime.now() + timedelta(days=1))
         await OrderLog.create(order_id=order.pk)
         response.set_cookie('_oi', order.id, httponly=True, samesite='none', secure=True)
-    # await validate_order(cookies, order)
     return order
+
 
 # async def validate_order(cookies, order):
 #     if '_ri' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick restaurant')

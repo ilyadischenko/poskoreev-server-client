@@ -9,13 +9,13 @@ from app.users.models import User
 
 async def OrderCheckOrCreate(cookies, user_id, response):
     if '_ri' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick restaurant')
-    if '_ai' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick address')
+    if '_si' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick street')
     _rid = cookies['_ri']
-    _aid = cookies['_ai']
+    _sid = cookies['_si']
     rid=int(_rid)
-    aid=int(_aid)
+    sid=int(_sid)
     if '_oi' not in cookies:
-        order = await Order.create(restaurant_id=rid, address_id=aid, user_id=user_id,
+        order = await Order.create(restaurant_id=rid, address_id=sid, user_id=user_id,
                                    invalid_at=datetime.now() + timedelta(days=1))
         await OrderLog.create(order_id=order.pk)
         await order.save()
@@ -23,7 +23,7 @@ async def OrderCheckOrCreate(cookies, user_id, response):
         return order
     order = await Order.get_or_none(id=cookies['_oi'], user=user_id)
     if not order:
-        order = await Order.create(restaurant_id=rid, address_id=aid, user_id=user_id,
+        order = await Order.create(restaurant_id=rid, address_id=sid, user_id=user_id,
                                    invalid_at=datetime.now() + timedelta(days=1))
         await OrderLog.create(order_id=order.pk)
         response.set_cookie('_oi', order.id, httponly=True, samesite='none', secure=True)
@@ -31,7 +31,7 @@ async def OrderCheckOrCreate(cookies, user_id, response):
         log = await OrderLog.get(order_id=order.id)
         log.status = 3
         await log.save()
-        order = await Order.create(restaurant_id=rid, address_id=aid, user_id=user_id,
+        order = await Order.create(restaurant_id=rid, address_id=sid, user_id=user_id,
                                    invalid_at=datetime.now() + timedelta(days=1))
         await OrderLog.create(order_id=order.pk)
         response.set_cookie('_oi', order.id, httponly=True, samesite='none', secure=True)

@@ -12,26 +12,6 @@ orders_router = APIRouter(
     prefix="/api/v1/orders"
 )
 
-
-@orders_router.post('/pickRestaurant', tags=['Orders'])
-async def pick_restaurant(restaurant_id: int, response: Response):
-    restaurant = await Restaurant.get_or_none(id=restaurant_id)
-    if not restaurant: raise HTTPException(status_code=404, detail="Restaurant not found")
-    response.set_cookie('_ri', value=restaurant.pk, httponly=True, samesite='none', secure=True)
-    return
-#
-#
-# @orders_router.post('/pickAdress', tags=['Orders'])
-# async def pick_address(street: str, response: Response, request: Request):
-#     rid = request.cookies['_ri']
-#     if not rid: raise HTTPException(status_code=400, detail="PLEASE pick restaurant")
-#     address = await Address.get_or_none(street=street, restaurant_id=int(rid))
-#     if not address: raise HTTPException(status_code=400, detail="doesnt exist or unreachable by this restaurant")
-#     if not address.available: raise HTTPException(status_code=400, detail="temporally(hopefully) unavailable")
-#     response.set_cookie('_ai', value=address.pk, httponly=True, samesite='none', secure=True)
-#     return
-
-
 @orders_router.get('/getOrder', tags=['Orders'])
 async def get_order(request: Request, responce: Response, user_id: AuthGuard = Depends(auth)):
     if '_oi' not in request.cookies: raise HTTPException(status_code=404, detail="Order not found")
@@ -78,7 +58,7 @@ async def check_active_orders(user_id: AuthGuard = Depends(auth)):
         })
     return responce_list
 @orders_router.delete('/cancelOrder', tags=['Orders'])
-async def cancel_order(order_id: int, request: Request, responce: Response, user_id: AuthGuard = Depends(auth)):
+async def cancel_order(order_id: int, user_id: AuthGuard = Depends(auth)):
     order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail="Order finished")
     if order.status!=1: return "order isnt finished"
@@ -86,6 +66,13 @@ async def cancel_order(order_id: int, request: Request, responce: Response, user
     log.canceled_at=datetime.now()
     await log.save()
     order.status=0
+    user = await User.get(id=user_id)
+    user.bonuses-=order.added_bonuses
+    await user.save()
+    if order.promocode_applied:
+        promocode = await PromoCode.get(short_name=order.promocode)
+        promocode.count+=1
+        await promocode.save()
     await order.save()
     # send_to_tg
     await order.delete()
@@ -99,8 +86,8 @@ async def finish_order(type: int, pay_type: int, comment: str, house: str, entra
     if '_ci' not in request.cookies: return "pick city"
     if '_ri' not in request.cookies: return "pick restaurant"
     if '_si' not in request.cookies: return "pick street"
-    if type<0 or type>2: return "please pick correct variant"
-    if pay_type < 0 or pay_type > 1: return "please pick correct variant"
+    if type<0 or type>2: return "please pick correct type (0 - inside, 1 - delivery, 2 - pickup)"
+    if pay_type < 0 or pay_type > 1: return "please pick correct payment variant (0 - cash, 1 - card)"
     order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
     if not order: return "make an order first"
     await validate_menu(order)
@@ -111,12 +98,12 @@ async def finish_order(type: int, pay_type: int, comment: str, house: str, entra
     street_query = await Address.get_or_none(id=int(request.cookies['_si']), available=True, city_id=int(request.cookies['_ci']), restaurant_id=int(request.cookies['_ri']))
     if street_query is None: return "address isnt viable anymore"
     r=await Restaurant.get(id=int(request.cookies['_ri']), city_id=int(request.cookies['_ci']))
-    if r.closed < datetime.now(timezone.utc).timetz(): return "this restaurant is closed"
-    if type==2 and r.closed-timedelta(minutes=20) < datetime.now(timezone.utc).timetz(): return "too late to eat inside"
+    if r.closed < datetime.now(timezone.utc).timetz(): return f"this restaurant was closed at {r.closed}"
+    if type==2 and r.closed-timedelta(minutes=20) < datetime.now(timezone.utc).timetz(): return f"too late to eat inside, restaurant will be closed at {r.closed}"
     if not r.working: return "this restaurant isnt working"
     if not(type==0 and r.inside or type==1 and r.delivery or type==2 and r.inside): return "this restaurant doesnt support this type"
     await CalculateOrder(order)
-    if r.min_sum > order.sum: return "too cheap"
+    if r.min_sum > order.sum: return f"too cheap min sum {r.min_sum} while yours {order.sum}"
     if order.promocode: await validate_promocode(order, order.promocode, user_id)
     log = await OrderLog.get(order_id=order.id)
     log.items=await GetOrderInJSON(order)

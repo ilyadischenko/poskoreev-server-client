@@ -7,7 +7,7 @@ from app.users.service import AuthGuard, auth, validate_number
 from app.users.sms import send_sms
 from app.auth.jwt_handler import generateJWT, decodeJWT
 from app.promocodes.models import PromoCode
-
+from app.orders.views import check_active_orders
 user_router = APIRouter(
     prefix='/api/v1/users'
 )
@@ -63,7 +63,8 @@ async def get_user(
             'bonuses': bonuses,
             'is_auth': is_auth,
             'pick_city': is_pick_city,
-            'pick_street': is_pick_street
+            'pick_street': is_pick_street,
+            'active_orders': await check_active_orders(decoded_code['id'])
             }
 
 
@@ -108,3 +109,22 @@ async def send_sms_to(number: str):
         await User.create(number=formatted_number, code=code, expires_at=expires_at)
     return f"code was sent to {number} and will expire at {expires_at}"
 
+@user_router.post('/dev/promocodes/give', tags=['dev'])
+async def give_promocode(number: str, promocode_id: int):
+    formatted_number = await validate_number(number)
+    user = await User.get(number=formatted_number)
+    if not user: raise HTTPException(status_code=404, detail=f"user with number {number} not found")
+    promocode = await PromoCode.get(id=promocode_id)
+    if not promocode: raise HTTPException(status_code=404, detail=f"promocode with id {promocode_id} not found")
+    await user.promocodes.add(promocode)
+    return f"promocode with id {promocode_id} was given to user {number}"
+
+
+@user_router.delete('/dev/promocodes/remove', tags=['dev'])
+async def remove_promocode(number: str, promocode_id: int):
+    user = await User.get(number=number)
+    if not user: raise HTTPException(status_code=404, detail=f"user with number {number} not found")
+    promocode = await PromoCode.get(id=promocode_id)
+    if not promocode: raise HTTPException(status_code=404, detail=f"promocode with id {promocode_id} not found")
+    await user.promocodes.remove(promocode)
+    return f"promocode with id {promocode_id} removed from user {number}"

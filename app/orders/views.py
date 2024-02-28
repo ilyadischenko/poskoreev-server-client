@@ -46,48 +46,48 @@ async def get_order(request: Request, responce: Response, user_id: AuthGuard = D
         'order': order,
         'promocode': promocode
     }
-@orders_router.get('/checkOrder', tags=['Orders'])
-async def check_order(request: Request, user_id: AuthGuard = Depends(auth)):
-    if '_foi' not in request.cookies: raise HTTPException(status_code=404, detail="Order not found")
-    order = await Order.get_or_none(id=request.cookies['_foi'], user_id=user_id)
-    if not order: raise HTTPException(status_code=404, detail="Order finished")
-    if order.status!=1: return "order isnt finished"
-    cart_list = []
-    items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu')
-    for item in items:
-        cart_list.append({'id': item.menu_id,
-                          'title': item.product.title,
-                          'img': item.product.img,
-                          'quantity': item.quantity,
-                          'unit': item.menu.unit,
-                          'sum': item.sum,
-                          'bonuses': item.bonuses})
-    return {
-        'items': cart_list,
-        'bonuses': order.added_bonuses,
-        'product_count': order.products_count,
-        'sum': order.sum,
-        'promocode': order.promocode,
-        'total sum': order.sum if not order.total_sum else order.total_sum,
-        'payment type': order.pay_type,
-        'type': order.type,
-        'address': {'street id':order.address_id, 'house': order.house, 'entrance': order.entrance, 'floor': order.floor, 'apartment': order.apartment},
-        'restaurant id': order.restaurant_id,
-        'comment': order.comment
-    }
+@orders_router.get('/checkActiveOrders', tags=['Orders'])
+async def check_active_orders(user_id: AuthGuard = Depends(auth)):
+    active_orders = await Order.filter(user_id=user_id, status=1)
+    responce_list=[]
+    if not active_orders: return responce_list
+    for order in active_orders:
+        cart_list = []
+        items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu')
+        for item in items:
+            cart_list.append({'id': item.menu_id,
+                              'title': item.product.title,
+                              'img': item.product.img,
+                              'quantity': item.quantity,
+                              'unit': item.menu.unit,
+                              'sum': item.sum,
+                              'bonuses': item.bonuses})
+        responce_list.append({
+            'order id': order.id,
+            'items': cart_list,
+            'bonuses': order.added_bonuses,
+            'product_count': order.products_count,
+            'sum': order.sum,
+            'promocode': order.promocode,
+            'total sum': order.sum if not order.total_sum else order.total_sum,
+            'payment type': order.pay_type,
+            'type': order.type,
+            'address': {'street id':order.address_id, 'house': order.house, 'entrance': order.entrance, 'floor': order.floor, 'apartment': order.apartment},
+            'restaurant id': order.restaurant_id,
+            'comment': order.comment
+        })
+    return responce_list
 @orders_router.delete('/cancelOrder', tags=['Orders'])
-async def cancel_order(request: Request, responce: Response, user_id: AuthGuard = Depends(auth)):
-    if '_foi' not in request.cookies: raise HTTPException(status_code=404, detail="Order not found")
-    order = await Order.get_or_none(id=request.cookies['_foi'], user_id=user_id)
+async def cancel_order(order_id: int, request: Request, responce: Response, user_id: AuthGuard = Depends(auth)):
+    order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail="Order finished")
     if order.status!=1: return "order isnt finished"
-    log=await OrderLog.get(order_id=order.id)
+    log=await OrderLog.get(order_id=order_id)
     log.canceled_at=datetime.now()
     await log.save()
     order.status=0
     await order.save()
     # send_to_tg
-    responce.delete_cookie('_foi')
     await order.delete()
 
 @orders_router.post('/finishOrder', tags=['Orders'])
@@ -95,7 +95,6 @@ async def finish_order(type: int, pay_type: int, comment: str, house: str, entra
                        response: Response,
                        user_id: AuthGuard = Depends(auth)):
     if '_at' not in request.cookies: raise HTTPException(status_code=401, detail="unauthorized")
-    if '_foi' in request.cookies: return "wait until order is finished"
     if '_oi' not in request.cookies: return "make order first"
     if '_ci' not in request.cookies: return "pick city"
     if '_ri' not in request.cookies: return "pick restaurant"
@@ -119,6 +118,11 @@ async def finish_order(type: int, pay_type: int, comment: str, house: str, entra
     await CalculateOrder(order)
     if r.min_sum > order.sum: return "too cheap"
     if order.promocode: await validate_promocode(order, order.promocode, user_id)
+    log = await OrderLog.get(order_id=order.id)
+    log.items=await GetOrderInJSON(order)
+    log.type=type
+    log.success_completion_at=datetime.now()
+    await log.save()
     order.comment=comment
     order.house=house
     order.entrance=entrance
@@ -133,12 +137,6 @@ async def finish_order(type: int, pay_type: int, comment: str, house: str, entra
         promocode = await PromoCode.get(short_name=order.promocode)
         promocode.count-=1
         await promocode.save()
-    log = await OrderLog.get(order_id=order.id)
-    log.items=await GetOrderInJSON(order)
-    log.type=type
-    log.success_completion_at=datetime.now()
-    await log.save()
-    response.set_cookie('_foi', value=order.id)
     response.delete_cookie('_oi')
     #send_order_to_tg
     return "done"

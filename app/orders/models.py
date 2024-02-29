@@ -12,8 +12,13 @@ class Order(Model):
     type = fields.IntField(default=1)
     invalid_at = fields.DatetimeField()
     added_bonuses=fields.IntField(ge=0, default=0)
-    #0 - canceled 1 - success completion 2 - in progress, 3 expired
-    status = fields.IntField(default=2)
+    # 0 в процессе создания
+    # 1 ожидает подтверждение менеджера
+    # 2 принят
+    # 3 начали готовить
+    # 4 доставляют
+    # 5 доставили
+    status = fields.IntField(default=0)
     # 0 - наличные, 1 - картой при получении, 2 - картой на сайте (пока не делаем функционал)
     pay_type = fields.IntField(default=1)
     products_count = fields.IntField(ge=0, default=0)
@@ -44,6 +49,12 @@ class OrderLog(Model):
     order_id = fields.IntField()
     items = fields.JSONField(null=True)
     type = fields.IntField(default=1)
+    #-1 в процессе
+    #0 отменен
+    #1 доставлен
+    #2 истек срок
+    #3 менеджер сказал фейк(опционально)
+    status = fields.IntField(default=-1)
     canceled_at = fields.DatetimeField(null=True)
     paid_at = fields.DatetimeField(null=True)
     success_completion_at = fields.DatetimeField(null=True)

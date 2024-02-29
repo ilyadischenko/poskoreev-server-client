@@ -29,10 +29,9 @@ async def get_order(request: Request, responce: Response, user_id: AuthGuard = D
         'promocode': promocode
     }
 
-
 @orders_router.get('/checkActiveOrders', tags=['Orders'])
 async def check_active_orders(user_id: AuthGuard = Depends(auth)):
-    active_orders = await Order.filter(user_id=user_id, status=1)
+    active_orders = await Order.filter(user_id=user_id, status__gte=1)
     responce_list = []
     if not active_orders: return responce_list
     for order in active_orders:
@@ -48,6 +47,7 @@ async def check_active_orders(user_id: AuthGuard = Depends(auth)):
                               'bonuses': item.bonuses})
         responce_list.append({
             'order id': order.id,
+            'status': order.status,
             'items': cart_list,
             'bonuses': order.added_bonuses,
             'product_count': order.products_count,
@@ -68,11 +68,11 @@ async def check_active_orders(user_id: AuthGuard = Depends(auth)):
 async def cancel_order(order_id: int, user_id: AuthGuard = Depends(auth)):
     order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail="Order finished")
-    if order.status != 1: return "order isnt finished"
+    if not order.status: return "order isnt finished"
     log = await OrderLog.get(order_id=order_id)
     log.canceled_at = datetime.now()
+    log.status=0
     await log.save()
-    order.status = 0
     user = await User.get(id=user_id)
     user.bonuses -= order.added_bonuses
     await user.save()
@@ -80,7 +80,6 @@ async def cancel_order(order_id: int, user_id: AuthGuard = Depends(auth)):
         promocode = await PromoCode.get(short_name=order.promocode)
         promocode.count += 1
         await promocode.save()
-    await order.save()
     # send_to_tg
     await order.delete()
 
@@ -101,8 +100,9 @@ async def finish_order( pay_type: int, comment: str, house: str, entrance: str, 
     await validate_menu(order)
     if order.invalid_at <= datetime.now(tz=timezone.utc):
         log = await OrderLog.get(order_id=order.id)
-        log.status = 3
+        log.status = 2
         await log.save()
+        raise HTTPException(status_code=400, detail="order expired")
     street_query = await Address.get_or_none(id=int(request.cookies['_si']), available=True,
                                              city_id=int(request.cookies['_ci']),
                                              restaurant_id=int(request.cookies['_ri']))
@@ -128,7 +128,8 @@ async def finish_order( pay_type: int, comment: str, house: str, entrance: str, 
     order.entrance = entrance
     order.apartment = appartment
     order.floor = floor
-    order.status = 1
+    if order.sum >= 3000: order.status = 1
+    else: order.status = 2
     await order.save()
     if order.promocode_applied:
         promocode = await PromoCode.get(short_name=order.promocode)
@@ -147,10 +148,9 @@ async def add_to_order(menu_id: int,
                        ):
     if '_ri' not in request.cookies: raise HTTPException(status_code=400, detail="PLEASE pick restaurant")
     rid = request.cookies['_ri']
-
-    order = await OrderCheckOrCreate(request.cookies, user_id, response)
     menu_item = await Menu.get_or_none(id=menu_id, restaurant_id=int(rid))
     if not menu_item: raise HTTPException(status_code=404, detail=f"Product {menu_id} not found")
+    order = await OrderCheckOrCreate(request.cookies, user_id, response)
     cart_item = await CartItem.get_or_none(menu_id=menu_id, order_id=order.id)
     if not cart_item:
         item = CartItem(order_id=order.id, product_id=menu_item.product_id, menu_id=menu_item.id, quantity=1,

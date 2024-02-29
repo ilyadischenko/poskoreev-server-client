@@ -52,3 +52,9 @@ async def set_street(street: int, request: Request, response: Response):
 
     return street_query
 
+@restaurant_router.get('/getRestaurantInfo', tags=['Restaurants'])
+async def get_restaurant_info(request: Request):
+    if not '_ri' in request.cookies: raise HTTPException(status_code=404, detail='no restaurant set')
+    restaurant = await Restaurant.get(id=int(request.cookies['_ri']))
+    if not restaurant: raise HTTPException(status_code=404, detail=f"Restaurant {request.cookies['_ri']} not found")
+    return {"open": restaurant.open, "closed": restaurant.closed, "working": restaurant.working, "min sum": restaurant.min_sum}

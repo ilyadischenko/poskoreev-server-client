@@ -1,42 +1,49 @@
 import datetime
+from urllib import request
 
 from fastapi import HTTPException, APIRouter, Request, Response
 from app.restaurants.models import Restaurant, Address, City
 from app.orders.models import Order, OrderLog
-restaurant_router = APIRouter()
+restaurant_router = APIRouter(
+    prefix="/api/v1/restaurants"
+)
 
 
 @restaurant_router.get('/getCities', tags=['Restaurants'])
 async def get_cities():
     # add sort
-    return await City.all()
+    query = await City.all().values('id', 'name')
+    query.sort(key=lambda i : i['name'])
+    return query
 
 
-@restaurant_router.post('/setCity', tags=['Restaurants'])
+@restaurant_router.post('/setcity', tags=['Restaurants'])
 async def set_city(city: int, request: Request, response: Response):
     # проверить на наличие рестика
+    print(1)
     query = await City.get_or_none(id=city)
     if query is None: raise HTTPException(status_code=404, detail='City not found')
     if '_ci' in request.cookies and int(request.cookies['_ci'])!=city:
         response.delete_cookie('_si')
         response.delete_cookie('_ri')
         if '_oi' in request.cookies:
-            await Order.filter(id=int(request.cookies['_oi'])).delete()
-            await OrderLog.filter(order_id=int(request.cookies['_oi'])).delete()
+            # await Order.filter(id=int(request.cookies['_oi'])).delete()
+            # await OrderLog.filter(order_id=int(request.cookies['_oi'])).delete()
             response.delete_cookie('_oi')
     response.set_cookie('_ci', str(city), httponly=True, samesite='none', secure=True)
     return query
 
 
-@restaurant_router.get('/getStreets', tags=['Restaurants'])
+@restaurant_router.get('/getstreets', tags=['Restaurants'])
 async def get_streets(request: Request):
     if '_ci' not in request.cookies:
         raise HTTPException(status_code=404, detail='pick city')
+    query = await Address.filter(city_id=int(request.cookies['_ci']), available=True).values('street', 'id')
+    query.sort(key=lambda i : i['street'])
+    return query
 
-    return await Address.filter(city_id=int(request.cookies['_ci']), available=True).values('street', 'id')
 
-
-@restaurant_router.post('/setStreet', tags=['Restaurants'])
+@restaurant_router.post('/setstreet', tags=['Restaurants'])
 async def set_street(street: int, request: Request, response: Response):
     if '_ci' not in request.cookies:
         raise HTTPException(status_code=404, detail='pick city')
@@ -47,14 +54,14 @@ async def set_street(street: int, request: Request, response: Response):
         # await Order.filter(id=int(request.cookies['_oi'])).delete()
         # await OrderLog.filter(order_id=int(request.cookies['_oi'])).delete()
         response.delete_cookie('_oi')
-    response.set_cookie('_ri', str(street_query.restaurant_id))
-    response.set_cookie('_si', str(street))
+    response.set_cookie('_ri', str(street_query.restaurant_id), httponly=True, samesite='none', secure=True)
+    response.set_cookie('_si', str(street), httponly=True, samesite='none', secure=True)
 
     return street_query
 
-@restaurant_router.get('/getRestaurantInfo', tags=['Restaurants'])
+@restaurant_router.get('/', tags=['Restaurants'])
 async def get_restaurant_info(request: Request):
     if not '_ri' in request.cookies: raise HTTPException(status_code=404, detail='no restaurant set')
     restaurant = await Restaurant.get(id=int(request.cookies['_ri']))
     if not restaurant: raise HTTPException(status_code=404, detail=f"Restaurant {request.cookies['_ri']} not found")
-    return {"open": restaurant.open, "closed": restaurant.closed, "working": restaurant.working, "min sum": restaurant.min_sum}
+    return {"open": restaurant.open, "closed": restaurant.closed, "working": restaurant.working, "min_sum": restaurant.min_sum}

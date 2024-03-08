@@ -27,6 +27,7 @@ async def get_user(
     telegram = ''
     promocodes = ''
     bonuses = ''
+    active_orders = []
 
     # decoded_code = None
     if '_at' not in request.cookies:
@@ -47,7 +48,7 @@ async def get_user(
                 telegram = user.telegram
                 promocodes = await user.get_all_promocodes()
                 bonuses = user.bonuses
-
+                active_orders = await check_active_orders(decoded_code['id'])
 
     if '_ci' not in request.cookies:
         is_pick_city = False
@@ -64,7 +65,7 @@ async def get_user(
             'is_auth': is_auth,
             'pick_city': is_pick_city,
             'pick_street': is_pick_street,
-            'active_orders': await check_active_orders(decoded_code['id'])
+            'active_orders': active_orders
             }
 
 

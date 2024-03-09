@@ -68,7 +68,7 @@ async def CalculateOrder(order):
 
 async def GetOrderInJSON(order):
     cart_list = []
-    items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu')
+    items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu').order_by('id')
     for item in items:
         cart_list.append({'id': item.menu_id,
                           'title': item.product.title,
@@ -85,7 +85,7 @@ async def GetOrderInJSON(order):
         'sum': order.sum,
         'promocode': order.promocode,
         'valid': order.promocode_applied,
-        'total sum': order.sum if not order.total_sum else order.total_sum
+        'total_sum': order.sum if not order.total_sum else order.total_sum
     }
 
 async def validate_menu(order):

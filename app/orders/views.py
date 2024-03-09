@@ -149,7 +149,9 @@ async def add_to_order(menu_id: int,
     if '_ri' not in request.cookies: raise HTTPException(status_code=400, detail="PLEASE pick restaurant")
     rid = request.cookies['_ri']
     menu_item = await Menu.get_or_none(id=menu_id, restaurant_id=int(rid))
-    if not menu_item: raise HTTPException(status_code=404, detail=f"Product {menu_id} not found")
+    if not menu_item: raise HTTPException(status_code=404, detail=f"Продукт {menu_id} не найден")
+    if not menu_item.in_stock: raise HTTPException(status_code=400, detail="Продукт закончился")
+
     order = await OrderCheckOrCreate(request.cookies, user_id, response)
     cart_item = await CartItem.get_or_none(menu_id=menu_id, order_id=order.id)
     if not cart_item:

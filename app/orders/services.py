@@ -75,6 +75,7 @@ async def GetOrderInJSON(order):
                           'img': item.product.img,
                           'quantity': item.quantity,
                           'unit': item.menu.unit,
+                          'size': item.menu.size,
                           'sum': item.sum,
                           'bonuses': item.bonuses})
     return {

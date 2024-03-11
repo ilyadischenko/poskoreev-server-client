@@ -2,18 +2,33 @@ version: '3.8'
 
 services:
   db:
+    restart: always
     image: postgres:latest
-    container_name: my_postgres_db
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
-  fastapi:
+  server:
+    restart: always
     build:
       context: .
       dockerfile: Dockerfile
+    env_file:
+      - .env
+    container_name: ${SERVER_HOST}
     ports:
-      - "8000:8000"
+      - ${SERVER_PORT}:${SERVER_PORT}
     depends_on:
       - db
+
+  nginx:
+    image: nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    restart: always
+    env_file: .env
+    ports:
+      - ${NGINX_PORT}:${NGINX_PORT}
+    depends_on:
+      - server

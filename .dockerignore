@@ -2,3 +2,10 @@ venv
 .idea
 __pycache__
 *.pyc
+tests
+pyproject.toml
+Документация APi.yaml
+.gitignore
+.git
+deploy.
+data

@@ -1,22 +1,19 @@
 version: '3.8'
 
 services:
-  postgres:
+  db:
     image: postgres:latest
     container_name: my_postgres_db
     environment:
-      POSTGRES_DB: pizza
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 1234
-    ports:
-      - "5432:5432
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
-  fastapi_app:
+  fastapi:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: my_fastapi_app
     ports:
-      - "80:80"
+      - "8000:8000"
     depends_on:
-      - postgres
+      - db

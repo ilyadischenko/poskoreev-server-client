@@ -1,4 +1,5 @@
 import datetime
+import json
 from urllib import request
 
 from fastapi import HTTPException, APIRouter, Request, Response
@@ -53,15 +54,17 @@ async def set_street(street: int, request: Request, response: Response):
     if '_ri' in request.cookies and '_oi' in request.cookies and street_query.restaurant_id!=int(request.cookies['_ri']):
         # await Order.filter(id=int(request.cookies['_oi'])).delete()
         # await OrderLog.filter(order_id=int(request.cookies['_oi'])).delete()
-        response.delete_cookie('_oi')
+        print(123)
+        response.delete_cookie('_oi', httponly=True, samesite='none', secure=True)
     response.set_cookie('_ri', str(street_query.restaurant_id), httponly=True, samesite='none', secure=True)
     response.set_cookie('_si', str(street), httponly=True, samesite='none', secure=True)
-
     return street_query
 
 @restaurant_router.get('/', tags=['Restaurants'])
 async def get_restaurant_info(request: Request):
-    if not '_ri' in request.cookies: raise HTTPException(status_code=404, detail='no restaurant set')
+    if not '_ri' in request.cookies or not '_si': raise HTTPException(status_code=404, detail='no restaurant set')
     restaurant = await Restaurant.get(id=int(request.cookies['_ri']))
+    street = await Address.get(id=int(request.cookies['_si']))
     if not restaurant: raise HTTPException(status_code=404, detail=f"Restaurant {request.cookies['_ri']} not found")
-    return {"open": restaurant.open, "closed": restaurant.closed, "working": restaurant.working, "min_sum": restaurant.min_sum}
+    return {"open": restaurant.open, "closed": restaurant.closed, "working": restaurant.working,
+            "min_sum": restaurant.min_sum, "restaurant_address": restaurant.address, "client_address": street.street}

@@ -78,7 +78,7 @@ async def confirm_code(number: str, code: str, response: Response):
     if user.code != code: raise HTTPException(status_code=401, detail="code is incorrect")
     # время токенов в utc
     access = await generateJWT(user.id)
-    response.set_cookie('_att', access,
+    response.set_cookie('_at', access,
                          expires="Tue, 19 Jan 2038 03:14:07 GMT", secure=False)
     return {'number': "8" + user.number,
             'email': user.email,

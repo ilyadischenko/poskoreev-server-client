@@ -1,15 +1,6 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:latest
-    container_name: my_postgres_db
-    environment:
-      POSTGRES_DB: pizza
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 1234
-    ports:
-      - "5432:5432
 
   fastapi_app:
     build:
@@ -17,6 +8,15 @@ services:
       dockerfile: Dockerfile
     container_name: my_fastapi_app
     ports:
-      - "80:80"
+      - "80:8000"
     depends_on:
       - postgres
+
+  nginx:
+    restart: always
+    build:
+      context: ./nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"

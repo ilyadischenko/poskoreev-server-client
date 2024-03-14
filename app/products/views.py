@@ -8,8 +8,13 @@ products_router = APIRouter(
 
 
 @products_router.get('/', tags=['Products'])
-async def get_product():
-    menu = await Menu.all().order_by('size').filter(visible=True).prefetch_related('product', 'category')
+async def get_product(request: Request):
+    if '_ri' not in request.cookies:
+        rid = 1
+    else:
+        rid = request.cookies['_ri']
+
+    menu = await Menu.filter(restaurant_id=int(rid)).order_by('size').filter(visible=True).prefetch_related('product', 'category')
     products_dict = {}
 
     for i in menu:
@@ -17,7 +22,8 @@ async def get_product():
         if type not in products_dict:
             products_dict[type] = {
                 "type": type,
-                "items": []
+                "items": [],
+                "priority": i.category.priority
             }
 
         existing_item = next((item for item in products_dict[type]["items"] if item["title"] == i.product.title), None)
@@ -30,7 +36,6 @@ async def get_product():
             existing_item["sizes"].append(i.size)
             existing_item["units"].append(i.unit)
         else:
-            # Create a new item
             products_dict[type]["items"].append({
                 "title": i.product.title,
                 "img": i.product.img,
@@ -42,22 +47,7 @@ async def get_product():
                 "sizes": [i.size],
                 "units": [i.unit]
             })
-    # Convert dictionary values to a list
-    p=dict(sorted(products_dict.items()))
-    products = list(p.values())
-    return {"products": products}
+    p=sorted(products_dict.values(), key=lambda x: x["priority"])
+    clean = [{k: v for k, v in product.items() if k != "priority"} for product in p]
+    return {"products": clean}
 
-
-@products_router.post('/addProduct', tags=['Products'])
-async def add_product(title: str, description: str):
-    return await Product.create(title=title, description=description)
-
-
-@products_router.post('/addProductType', tags=['Products'])
-async def add_product_type(type: str):
-    return await ProductCategory.create(type=type)
-
-
-@products_router.post('/addMenuItem', tags=['Products'])
-async def add_menu_item(product: int, type: int, price: int, size: int, unit: str):
-    return await Menu.create(product_id=product, category_id=type, price=price, size=size, unit=unit)

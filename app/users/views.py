@@ -79,7 +79,7 @@ async def confirm_code(number: str, code: str, response: Response):
     # время токенов в utc
     access = await generateJWT(user.id)
     response.set_cookie('_at', access,
-                         expires="Tue, 19 Jan 2038 03:14:07 GMT", secure=False)
+                         expires="Tue, 19 Jan 2038 03:14:07 GMT", secure=True, samesite='none')
     return {'number': "8" + user.number,
             'email': user.email,
             'telegram': user.telegram,

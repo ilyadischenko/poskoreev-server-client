@@ -31,7 +31,7 @@ async def set_city(city: int, request: Request, response: Response):
             # await Order.filter(id=int(request.cookies['_oi'])).delete()
             # await OrderLog.filter(order_id=int(request.cookies['_oi'])).delete()
             response.delete_cookie('_oi')
-    response.set_cookie('_ci', str(city), httponly=True)
+    response.set_cookie('_ci', str(city), httponly=True, secure=True, samesite='none')
     return query
 
 
@@ -56,8 +56,8 @@ async def set_street(street: int, request: Request, response: Response):
         # await OrderLog.filter(order_id=int(request.cookies['_oi'])).delete()
         print(123)
         response.delete_cookie('_oi', httponly=True, samesite='none', secure=True)
-    response.set_cookie('_ri', str(street_query.restaurant_id), httponly=True)
-    response.set_cookie('_si', str(street), httponly=True)
+    response.set_cookie('_ri', str(street_query.restaurant_id), httponly=True, secure=True, samesite='none')
+    response.set_cookie('_si', str(street), httponly=True, secure=True, samesite='none')
     return street_query
 
 @restaurant_router.get('/', tags=['Restaurants'])

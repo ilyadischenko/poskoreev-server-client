@@ -39,8 +39,8 @@ async def get_user(
         else:
             user = await User.get_or_none(id=decoded_code['id'])
             if not user:
-                response.delete_cookie('_at', httponly=False, samesite='none', secure=True)
-                response.delete_cookie('_oi', httponly=False, samesite='none', secure=True)
+                response.delete_cookie('_at', httponly=False, samesite='none')
+                response.delete_cookie('_oi', httponly=False, samesite='none')
                 is_auth = False
             else:
                 number = str('8' + user.number)
@@ -79,7 +79,7 @@ async def confirm_code(number: str, code: str, response: Response):
     # время токенов в utc
     access = await generateJWT(user.id)
     response.set_cookie('_att', access, httponly=False, samesite='none',
-                        secure=True, expires="Tue, 19 Jan 2038 03:14:07 GMT")
+                         expires="Tue, 19 Jan 2038 03:14:07 GMT")
     return {'number': "8" + user.number,
             'email': user.email,
             'telegram': user.telegram,
@@ -89,8 +89,8 @@ async def confirm_code(number: str, code: str, response: Response):
 
 @user_router.post('/exit', tags=['Users'])
 async def exit(response: Response):
-    response.delete_cookie('_at', httponly=False, samesite='none', secure=True)
-    response.delete_cookie('_oi', httponly=False, samesite='none', secure=True)
+    response.delete_cookie('_at', httponly=False, samesite='none')
+    response.delete_cookie('_oi', httponly=False, samesite='none')
     return 'ok'
 
 

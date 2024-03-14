@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: my_fastapi_app
+    container_name: fastapi_app
     ports:
       - "80:8000"
     depends_on:

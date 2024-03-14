@@ -19,14 +19,14 @@ async def OrderCheckOrCreate(cookies, user_id, response):
                                    invalid_at=datetime.now() + timedelta(days=1))
         await OrderLog.create(order_id=order.pk)
 
-        response.set_cookie('_oi', value=order.id, httponly=True, samesite='none', secure=True)
+        response.set_cookie('_oi', value=order.id, httponly=True)
         return order
     order = await Order.get_or_none(id=cookies['_oi'], user=user_id)
     if not order:
         order = await Order.create(restaurant_id=rid, address_id=sid, user_id=user_id,
                                    invalid_at=datetime.now() + timedelta(days=1))
         await OrderLog.create(order_id=order.pk)
-        response.set_cookie('_oi', order.id, httponly=True, samesite='none', secure=True)
+        response.set_cookie('_oi', order.id, httponly=True)
     if order.invalid_at <= datetime.now(tz=timezone.utc):
         log = await OrderLog.get(order_id=order.id)
         log.status = 2
@@ -34,7 +34,7 @@ async def OrderCheckOrCreate(cookies, user_id, response):
         order = await Order.create(restaurant_id=rid, address_id=sid, user_id=user_id,
                                    invalid_at=datetime.now() + timedelta(days=1))
         await OrderLog.create(order_id=order.pk)
-        response.set_cookie('_oi', order.id, httponly=True, samesite='none', secure=True)
+        response.set_cookie('_oi', order.id, httponly=True)
     return order
 
 

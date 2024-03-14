@@ -25,8 +25,8 @@ async def set_city(city: int, request: Request, response: Response):
     query = await City.get_or_none(id=city)
     if query is None: raise HTTPException(status_code=404, detail='City not found')
     if '_ci' in request.cookies and int(request.cookies['_ci'])!=city:
-        response.delete_cookie('_si')
-        response.delete_cookie('_ri')
+        response.delete_cookie('_si', httponly=True)
+        response.delete_cookie('_ri', httponly=True)
         if '_oi' in request.cookies:
             # await Order.filter(id=int(request.cookies['_oi'])).delete()
             # await OrderLog.filter(order_id=int(request.cookies['_oi'])).delete()

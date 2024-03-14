@@ -9,8 +9,6 @@ services:
     container_name: fastapi_app
     ports:
       - "80:8000"
-    depends_on:
-      - postgres
 
   nginx:
     restart: always
@@ -18,5 +16,5 @@ services:
       context: ./nginx
     ports:
       - "80:80"
-      - "443:443"
+#      - "443:443"
     command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"

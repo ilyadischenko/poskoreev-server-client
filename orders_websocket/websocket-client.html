@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Tracker</title>
+</head>
+<body>
+    <h1>Order Tracker</h1>
+    <div id="orderList">
+        <!-- Orders will be displayed here -->
+    </div>
+
+    <script>
+        // Function to append order data to the orderList div
+        function appendOrder(order) {
+            const orderElement = document.createElement('div');
+            orderElement.textContent = JSON.stringify(order);
+            document.getElementById('orderList').appendChild(orderElement);
+        }
+
+        // WebSocket connection to the FastAPI WebSocket endpoint
+        const socket = new WebSocket('ws://localhost:8000/ws/3'); // Replace 'restaurant_id' with the actual restaurant ID
+
+        // Event listener for WebSocket open
+        socket.onopen = function(event) {
+            console.log('WebSocket connection established.');
+        };
+
+        // Event listener for WebSocket message received
+        socket.onmessage = function(event) {
+            const order = JSON.parse(event.data);
+            appendOrder(order);
+        };
+
+        // Event listener for WebSocket close
+        socket.onclose = function(event) {
+            console.log('WebSocket connection closed.');
+        };
+
+        // Event listener for WebSocket error
+        socket.onerror = function(error) {
+            console.error('WebSocket error:', error);
+        };
+
+        // Function to send a message to the WebSocket server (optional)
+        function sendMessage(message) {
+            socket.send(message);
+        }
+    </script>
+</body>
+</html>

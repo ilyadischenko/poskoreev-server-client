@@ -98,9 +98,9 @@ async def validate_menu(order):
             raise HTTPException(status_code=400, detail={"these items arent viable": list})
     return
 
-async def AddPromocode(order, promocode, user_id):
-    short_promocode = promocode
-    if promocode is None or promocode == '':
+async def AddPromocode(order, input_promocode, user_id):
+    short_promocode = input_promocode
+    if short_promocode is None or short_promocode == '':
         order.total_sum = order.sum
         order.promocode_applied = False
         order.promocode = None
@@ -112,7 +112,7 @@ async def AddPromocode(order, promocode, user_id):
             'linked': False,
             'message': '',
         }
-    promocode = await PromoCode.get_or_none(short_name=promocode, is_active=True)
+    promocode = await PromoCode.get_or_none(short_name=short_promocode, is_active=True)
     if not promocode:
         order.total_sum = order.sum
         order.promocode_applied = False
@@ -164,7 +164,7 @@ async def AddPromocode(order, promocode, user_id):
             'promocode': short_promocode,
             'applied': False,
             'linked': True,
-            'message': f'Минимальная сумма заказа для приминения промокода {promocode.min_sum}',
+            'message': f'Минимальная сумма заказа для применения промокода {promocode.min_sum}р',
         }
 
     if promocode.type == 2:
@@ -246,7 +246,7 @@ async def validate_promocode(order, promocode, user_id):
             'promocode': short_promocode,
             'applied': False,
             'linked': True,
-            'message': f'Минимальная сумма заказа для приминения промокода {promocode.min_sum}',
+            'message': f'Минимальная сумма заказа для применения промокода {promocode.min_sum}р',
         })
 
     if promocode.type == 2:

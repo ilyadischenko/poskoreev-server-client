@@ -108,8 +108,9 @@ async def finish_order( pay_type: int, comment: str, house: str, entrance: str, 
                                              restaurant_id=int(request.cookies['_ri']))
     if street_query is None: raise HTTPException(status_code=400, detail="address isnt viable anymore")
     r = await Restaurant.get(id=int(request.cookies['_ri']), city_id=int(request.cookies['_ci']))
-    if r.closed < datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail=f"this restaurant was closed at {r.closed}")
-    if r.open > datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail=f"this restaurant will be opened at {r.open}")
+    if not r: raise HTTPException(status_code=400, detail="we have no restaurant")
+    if r.closed > datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail=f"this restaurant was closed at {r.closed}")
+    if r.open < datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail=f"this restaurant will be opened at {r.open}")
     if not r.working: raise HTTPException(status_code=400, detail="this restaurant isnt working")
     type = 1
     if not r.delivery: raise HTTPException(status_code=400, detail="this restaurant doesnt support this type")
@@ -128,7 +129,8 @@ async def finish_order( pay_type: int, comment: str, house: str, entrance: str, 
     order.entrance = entrance
     order.apartment = appartment
     order.floor = floor
-    if order.sum >= 3000: order.status = 1
+    if order.sum >= r.need_valid_sum: order.status = 1
+    if order.sum >= r.max_sum: order.status = 1
     else: order.status = 2
     await order.save()
     if order.promocode_applied:
@@ -148,11 +150,15 @@ async def add_to_order(menu_id: int,
                        ):
     if '_ri' not in request.cookies: raise HTTPException(status_code=400, detail="PLEASE pick restaurant")
     rid = request.cookies['_ri']
+    restaurant = await Restaurant.get(id=int(request.cookies['_ri']), city_id=int(request.cookies['_ci']))
+    if not restaurant: raise HTTPException(status_code=404, detail="we have not this restaurant")
     menu_item = await Menu.get_or_none(id=menu_id, restaurant_id=int(rid))
     if not menu_item: raise HTTPException(status_code=404, detail=f"Продукт {menu_id} не найден")
     if not menu_item.in_stock: raise HTTPException(status_code=400, detail="Продукт закончился")
 
     order = await OrderCheckOrCreate(request.cookies, user_id, response)
+    if order.total_sum + menu_item.price > restaurant.max_sum: raise HTTPException(status_code=400, detail="Достигнут лимит")
+
     cart_item = await CartItem.get_or_none(menu_id=menu_id, order_id=order.id)
     if not cart_item:
         item = CartItem(order_id=order.id, product_id=menu_item.product_id, menu_id=menu_item.id, quantity=1,
@@ -226,7 +232,7 @@ async def decrease_quantity(menu_id: int,
 
 
 @orders_router.post('/addPromocode', tags=['Orders'])
-async def add_promocode_route(promocode_short_name: str,
+async def add_promocode(promocode_short_name: str,
                               request: Request,
                               response: Response,
                               user_id: AuthGuard = Depends(auth)):

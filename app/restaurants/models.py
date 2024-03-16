@@ -25,5 +25,7 @@ class Restaurant(Model):
     working = fields.BooleanField(default=True)
     city = fields.ForeignKeyField('models.City')
     min_sum = fields.IntField(default=0, ge=0)
+    need_valid_sum = fields.IntField(default=3000, ge=0)
+    max_sum = fields.IntField(default=20000, ge=0)
 
 

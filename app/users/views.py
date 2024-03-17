@@ -8,6 +8,7 @@ from app.users.sms import send_sms
 from app.auth.jwt_handler import generateJWT, decodeJWT
 from app.promocodes.models import PromoCode
 from app.orders.views import check_active_orders
+
 user_router = APIRouter(
     prefix='/api/v1/users'
 )
@@ -18,6 +19,7 @@ async def get_user(
         response: Response,
         request: Request,
 ):
+    print(111)
     is_pick_city = True
     is_pick_street = True
     is_auth = True
@@ -48,14 +50,12 @@ async def get_user(
                 telegram = user.telegram
                 promocodes = await user.get_all_promocodes()
                 bonuses = user.bonuses
-                active_orders = await check_active_orders(decoded_code['id'])
+                # active_orders = await check_active_orders(decoded_code['id'])
 
     if '_ci' not in request.cookies:
         is_pick_city = False
     if '_ri' not in request.cookies or '_si' not in request.cookies:
         is_pick_street = False
-
-
 
     return {'number': number,
             'email': email,
@@ -79,8 +79,8 @@ async def confirm_code(number: str, code: str, response: Response):
     # время токенов в utc
     access = await generateJWT(user.id)
     response.set_cookie('_at', access,
-                         expires="Tue, 19 Jan 2038 03:14:07 GMT", secure=True, samesite='none')
-    user.code=''
+                        expires="Tue, 19 Jan 2038 03:14:07 GMT", secure=True, samesite='none')
+    user.code = ''
     await user.save()
     return {'number': "8" + user.number,
             'email': user.email,
@@ -100,7 +100,8 @@ async def exit(response: Response):
 async def send_sms_to(number: str):
     formatted_number = await validate_number(number)
     user = await User.get_or_none(number=formatted_number)
-    code = await send_sms()
+    # code = await send_sms()
+    code = 1234
     expires_at = datetime.now(tz=get_localzone()) + timedelta(minutes=10)
     if (not code): raise HTTPException(status_code=500, detail="apparently sms wasnt sent")
     if user:
@@ -112,23 +113,3 @@ async def send_sms_to(number: str):
     else:
         await User.create(number=formatted_number, code=code, expires_at=expires_at)
     return f"code was sent to {number} and will expire at {expires_at}"
-
-# @user_router.post('/dev/promocodes/give', tags=['dev'])
-# async def give_promocode(number: str, promocode_id: int):
-#     formatted_number = await validate_number(number)
-#     user = await User.get(number=formatted_number)
-#     if not user: raise HTTPException(status_code=404, detail=f"user with number {number} not found")
-#     promocode = await PromoCode.get(id=promocode_id)
-#     if not promocode: raise HTTPException(status_code=404, detail=f"promocode with id {promocode_id} not found")
-#     await user.promocodes.add(promocode)
-#     return f"promocode with id {promocode_id} was given to user {number}"
-#
-#
-# @user_router.delete('/dev/promocodes/remove', tags=['dev'])
-# async def remove_promocode(number: str, promocode_id: int):
-#     user = await User.get(number=number)
-#     if not user: raise HTTPException(status_code=404, detail=f"user with number {number} not found")
-#     promocode = await PromoCode.get(id=promocode_id)
-#     if not promocode: raise HTTPException(status_code=404, detail=f"promocode with id {promocode_id} not found")
-#     await user.promocodes.remove(promocode)
-#     return f"promocode with id {promocode_id} removed from user {number}"

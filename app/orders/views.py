@@ -24,7 +24,7 @@ async def choose_payment_type(pay_type : int, request: Request):
     if not opt: opt=await OrderPayType.create(order_id=int(request.cookies['_oi']),  restaurant_pay_type_id=rpt.id)
     opt.restaurant_pay_type_id=rpt.id
     await opt.save()
-    return opt
+    return {'id': opt.id}
 
 @orders_router.get('/getOrder', tags=['Orders'])
 async def get_order(request: Request, responce: Response, user_id: AuthGuard = Depends(auth)):
@@ -61,15 +61,15 @@ async def check_active_orders(user_id: AuthGuard = Depends(auth)):
                               'sum': item.sum,
                               'bonuses': item.bonuses})
         response_list.append({
-            'order id': order.id,
+            'order_id': order.id,
             'status': order.status,
             'items': cart_list,
             'bonuses': order.added_bonuses,
             'product_count': order.products_count,
             'sum': order.sum,
             'promocode': order.promocode,
-            'total sum': order.sum if not order.total_sum else order.total_sum,
-            'payment type': rpt.pay_type_id,
+            'total_sum': order.sum if not order.total_sum else order.total_sum,
+            # 'payment_type': rpt.pay_type_id,
             'type': order.type,
             'address': {'street id': order.address_id, 'house': order.house, 'entrance': order.entrance,
                         'floor': order.floor, 'apartment': order.apartment},
@@ -170,12 +170,12 @@ async def add_to_order(menu_id: int,
     rid = request.cookies['_ri']
     restaurant = await Restaurant.get(id=int(request.cookies['_ri']), city_id=int(request.cookies['_ci']))
     if not restaurant: raise HTTPException(status_code=404, detail="we dont have this restaurant")
-    menu_item = await Menu.get_or_none(id=menu_id, restaurant_id=int(rid))
+    menu_item = await Menu.get_or_none(id=menu_id, restaurant_id=int(rid), delivery=True)
     if not menu_item: raise HTTPException(status_code=404, detail=f"Продукт {menu_id} не найден")
     if not menu_item.in_stock: raise HTTPException(status_code=400, detail="Продукт закончился")
 
     order = await OrderCheckOrCreate(request.cookies, user_id, response)
-    if order.total_sum + menu_item.price > restaurant.max_sum: raise HTTPException(status_code=400, detail="Достигнут лимит")
+    if order.total_sum + menu_item.price > restaurant.max_sum: raise HTTPException(status_code=402, detail="Достигнут лимит")
 
     cart_item = await CartItem.get_or_none(menu_id=menu_id, order_id=order.id)
     if not cart_item:

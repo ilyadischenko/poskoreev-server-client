@@ -21,15 +21,12 @@ async def get_cities():
 @restaurant_router.post('/setcity', tags=['Restaurants'])
 async def set_city(city: int, request: Request, response: Response):
     # проверить на наличие рестика
-    print(1)
     query = await City.get_or_none(id=city)
     if query is None: raise HTTPException(status_code=404, detail='City not found')
     if '_ci' in request.cookies and int(request.cookies['_ci'])!=city:
         response.delete_cookie('_si', httponly=True)
         response.delete_cookie('_ri', httponly=True)
         if '_oi' in request.cookies:
-            # await Order.filter(id=int(request.cookies['_oi'])).delete()
-            # await OrderLog.filter(order_id=int(request.cookies['_oi'])).delete()
             response.delete_cookie('_oi')
     response.set_cookie('_ci', str(city), httponly=True, secure=True, samesite='none')
     return query
@@ -54,9 +51,6 @@ async def set_street(street: int, request: Request, response: Response):
     r = await Restaurant.get(id=street_query.restaurant_id)
     if not r.delivery: raise HTTPException(status_code=400, detail='unfortunately the restaurant that serves your street temporally doesnt deliver')
     if '_ri' in request.cookies and '_oi' in request.cookies and r.id!=int(request.cookies['_ri']):
-        # await Order.filter(id=int(request.cookies['_oi'])).delete()
-        # await OrderLog.filter(order_id=int(request.cookies['_oi'])).delete()
-        print(123)
         response.delete_cookie('_oi', httponly=True, samesite='none', secure=True)
     response.set_cookie('_ri', str(r.id), httponly=True, secure=True, samesite='none')
     response.set_cookie('_si', str(street), httponly=True, secure=True, samesite='none')
@@ -68,7 +62,7 @@ async def get_restaurant_info(request: Request):
     restaurant = await Restaurant.get(id=int(request.cookies['_ri']))
     street = await Address.get(id=int(request.cookies['_si']))
     if not restaurant: raise HTTPException(status_code=404, detail=f"Restaurant {request.cookies['_ri']} not found")
-    rpt_query = await RestaurantPayType.filter(restaurant_id=restaurant.id, available=True)
-    rpt_list=[rpt.pay_type_id for rpt in rpt_query]
-    return {"open": restaurant.open, "closed": restaurant.closed, "working": restaurant.working, "pay types": rpt_list,
+    rpt_query = await RestaurantPayType.filter(restaurant_id=restaurant.id, available=True).prefetch_related('pay_type')
+    rpt_list=[{'id': rpt.pay_type_id, 'name': rpt.pay_type.name} for rpt in rpt_query]
+    return {"open": restaurant.open, "closed": restaurant.closed, "working": restaurant.working, "pay_types": rpt_list,
             "min_sum": restaurant.min_sum, "restaurant_address": restaurant.address, "client_address": street.street}

@@ -1,7 +1,7 @@
 from fastapi import HTTPException, APIRouter, Depends, Request, Response
 from app.orders.models import Order, CartItem, OrderLog
 from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJSON, AddPromocode, validate_menu, \
-    validate_promocode
+    validate_promocode, check_all_cookies
 from app.products.models import Menu
 from app.restaurants.models import Restaurant, Address
 from app.users.models import User
@@ -19,7 +19,7 @@ async def get_order(request: Request, responce: Response, user_id: AuthGuard = D
     if '_oi' not in request.cookies: raise HTTPException(status_code=404, detail="Order not found")
     order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
     if not order:
-        # чтобы удалить куки нужен пост мб но я пока не понял зачем их удалять
+        responce.delete_cookie('_oi', httponly=True, secure=True, samesite='none')
         raise HTTPException(status_code=404, detail="Order not found")
 
     promocode = await AddPromocode(order, order.promocode, user_id)
@@ -89,11 +89,7 @@ async def finish_order( pay_type: int, comment: str, house: str, entrance: str, 
                        request: Request,
                        response: Response,
                        user_id: AuthGuard = Depends(auth)):
-    if '_at' not in request.cookies: raise HTTPException(status_code=401, detail="unauthorized")
-    if '_oi' not in request.cookies: raise HTTPException(status_code=400, detail="make order first")
-    if '_ci' not in request.cookies: raise HTTPException(status_code=400, detail="pick city")
-    if '_ri' not in request.cookies: raise HTTPException(status_code=400, detail="pick restaurant")
-    if '_si' not in request.cookies: raise HTTPException(status_code=400, detail="pick street")
+    await check_all_cookies(request.cookies)
     if pay_type < 0 or pay_type > 1: raise HTTPException(status_code=400, detail="please pick correct payment variant (0 - cash, 1 - card)")
     order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
     if not order: raise HTTPException(status_code=400, detail="make an order first")
@@ -109,8 +105,8 @@ async def finish_order( pay_type: int, comment: str, house: str, entrance: str, 
     if street_query is None: raise HTTPException(status_code=400, detail="address isnt viable anymore")
     r = await Restaurant.get(id=int(request.cookies['_ri']), city_id=int(request.cookies['_ci']))
     if not r: raise HTTPException(status_code=400, detail="we have no restaurant")
-    if r.closed > datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail=f"this restaurant was closed at {r.closed}")
-    if r.open < datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail=f"this restaurant will be opened at {r.open}")
+    if r.closed < datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail=f"this restaurant was closed at {r.closed}")
+    if r.open > datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail=f"this restaurant will be opened at {r.open}")
     if not r.working: raise HTTPException(status_code=400, detail="this restaurant isnt working")
     type = 1
     if not r.delivery: raise HTTPException(status_code=400, detail="this restaurant doesnt support this type")
@@ -151,7 +147,7 @@ async def add_to_order(menu_id: int,
     if '_ri' not in request.cookies: raise HTTPException(status_code=400, detail="PLEASE pick restaurant")
     rid = request.cookies['_ri']
     restaurant = await Restaurant.get(id=int(request.cookies['_ri']), city_id=int(request.cookies['_ci']))
-    if not restaurant: raise HTTPException(status_code=404, detail="we have not this restaurant")
+    if not restaurant: raise HTTPException(status_code=404, detail="we dont have this restaurant")
     menu_item = await Menu.get_or_none(id=menu_id, restaurant_id=int(rid))
     if not menu_item: raise HTTPException(status_code=404, detail=f"Продукт {menu_id} не найден")
     if not menu_item.in_stock: raise HTTPException(status_code=400, detail="Продукт закончился")

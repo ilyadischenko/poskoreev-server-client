@@ -37,7 +37,11 @@ async def OrderCheckOrCreate(cookies, user_id, response):
         response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
     return order
 
-
+async def check_all_cookies(cookies):
+    if '_oi' not in cookies: raise HTTPException(status_code=400, detail="make order first")
+    if '_ci' not in cookies: raise HTTPException(status_code=400, detail="pick city")
+    if '_ri' not in cookies: raise HTTPException(status_code=400, detail="pick restaurant")
+    if '_si' not in cookies: raise HTTPException(status_code=400, detail="pick street")
 # async def validate_order(cookies, order):
 #     if '_ri' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick restaurant')
 #     if '_ai' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick address')

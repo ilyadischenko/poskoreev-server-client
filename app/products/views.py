@@ -14,7 +14,7 @@ async def get_product(request: Request):
     else:
         rid = request.cookies['_ri']
 
-    menu = await Menu.filter(restaurant_id=int(rid)).order_by('size').filter(visible=True).prefetch_related('product', 'category')
+    menu = await Menu.filter(restaurant_id=int(rid)).order_by('size').filter(visible=True, delivery=True).prefetch_related('product', 'category')
     products_dict = {}
 
     for i in menu:

@@ -20,6 +20,7 @@ class Menu(Model):
     bonuses = fields.IntField(ge=0, default=0)
     visible = fields.BooleanField(default=False)
     in_stock = fields.BooleanField(default=True)
+    delivery = fields.BooleanField(default=True)
 
 
 class ProductCategory(Model):

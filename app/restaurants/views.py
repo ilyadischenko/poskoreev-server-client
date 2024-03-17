@@ -51,12 +51,14 @@ async def set_street(street: int, request: Request, response: Response):
     street_query = await Address.get_or_none(id=int(street), available=True, city_id=int(request.cookies['_ci']))
     if street_query is None:
         raise HTTPException(status_code=404, detail='street not found')
-    if '_ri' in request.cookies and '_oi' in request.cookies and street_query.restaurant_id!=int(request.cookies['_ri']):
+    r = await Restaurant.get(id=street_query.restaurant_id)
+    if not r.delivery: raise HTTPException(status_code=409, detail='unfortunately the restaurant that serves your street temporally doesnt deliver')
+    if '_ri' in request.cookies and '_oi' in request.cookies and r.id!=int(request.cookies['_ri']):
         # await Order.filter(id=int(request.cookies['_oi'])).delete()
         # await OrderLog.filter(order_id=int(request.cookies['_oi'])).delete()
         print(123)
         response.delete_cookie('_oi', httponly=True, samesite='none', secure=True)
-    response.set_cookie('_ri', str(street_query.restaurant_id), httponly=True, secure=True, samesite='none')
+    response.set_cookie('_ri', str(r.id), httponly=True, secure=True, samesite='none')
     response.set_cookie('_si', str(street), httponly=True, secure=True, samesite='none')
     return street_query
 

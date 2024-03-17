@@ -80,6 +80,8 @@ async def confirm_code(number: str, code: str, response: Response):
     access = await generateJWT(user.id)
     response.set_cookie('_at', access,
                          expires="Tue, 19 Jan 2038 03:14:07 GMT", secure=True, samesite='none')
+    user.code=''
+    await user.save()
     return {'number': "8" + user.number,
             'email': user.email,
             'telegram': user.telegram,
@@ -100,7 +102,7 @@ async def send_sms_to(number: str):
     user = await User.get_or_none(number=formatted_number)
     code = await send_sms()
     expires_at = datetime.now(tz=get_localzone()) + timedelta(minutes=10)
-    if (not code): raise HTTPException(status_code=500, detail="apparently code wasnt generated")
+    if (not code): raise HTTPException(status_code=500, detail="apparently sms wasnt sent")
     if user:
         if await UserBlacklist.filter(user_id=user.id): raise HTTPException(status_code=403,
                                                                             detail=f" {number} is in blacklist")

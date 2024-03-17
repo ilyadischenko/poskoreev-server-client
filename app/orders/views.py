@@ -1,9 +1,9 @@
 from fastapi import HTTPException, APIRouter, Depends, Request, Response
-from app.orders.models import Order, CartItem, OrderLog
+from app.orders.models import Order, CartItem, OrderLog, OrderPayType
 from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJSON, AddPromocode, validate_menu, \
-    validate_promocode, check_all_cookies
+    validate_promocode, check_all_cookies, check_order_payment_type
 from app.products.models import Menu
-from app.restaurants.models import Restaurant, Address
+from app.restaurants.models import Restaurant, Address, PayType, RestaurantPayType
 from app.users.models import User
 from app.promocodes.models import PromoCode
 from app.users.service import AuthGuard, auth
@@ -13,6 +13,18 @@ orders_router = APIRouter(
     prefix="/api/v1/orders"
 )
 
+@orders_router.post('/choosePaymentType',tags=['Orders'])
+async def choose_payment_type(pay_type : int, request: Request):
+    if not '_ri' in request.cookies: raise HTTPException(status_code=400, detail="pick r")
+    if not '_oi' in request.cookies: raise HTTPException(status_code=400, detail="make o")
+    rpt = await RestaurantPayType.get_or_none(restaurant_id=int(request.cookies['_ri']), pay_type_id=pay_type)
+    if not rpt: raise HTTPException(status_code=404, detail="unknown payment type")
+    if not rpt.available: raise HTTPException(status_code=400, detail="currently unavailable")
+    opt=await OrderPayType.get_or_none(order_id=int(request.cookies['_oi']))
+    if not opt: opt=await OrderPayType.create(order_id=int(request.cookies['_oi']),  restaurant_pay_type_id=rpt.id)
+    opt.restaurant_pay_type_id=rpt.id
+    await opt.save()
+    return opt
 
 @orders_router.get('/getOrder', tags=['Orders'])
 async def get_order(request: Request, responce: Response, user_id: AuthGuard = Depends(auth)):
@@ -32,9 +44,12 @@ async def get_order(request: Request, responce: Response, user_id: AuthGuard = D
 @orders_router.get('/checkActiveOrders', tags=['Orders'])
 async def check_active_orders(user_id: AuthGuard = Depends(auth)):
     active_orders = await Order.filter(user_id=user_id, status__gte=1)
-    responce_list = []
-    if not active_orders: return responce_list
+    response_list = []
+    if not active_orders: return response_list
     for order in active_orders:
+        opt = await OrderPayType.get(order_id=order.id)
+        rpt = await RestaurantPayType.get_or_none(id=opt.restaurant_pay_type_id, restaurant_id=order.restaurant_id)
+        if not rpt: raise HTTPException(status_code=404, detail="someone messed up")
         cart_list = []
         items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu')
         for item in items:
@@ -45,7 +60,7 @@ async def check_active_orders(user_id: AuthGuard = Depends(auth)):
                               'unit': item.menu.unit,
                               'sum': item.sum,
                               'bonuses': item.bonuses})
-        responce_list.append({
+        response_list.append({
             'order id': order.id,
             'status': order.status,
             'items': cart_list,
@@ -54,14 +69,14 @@ async def check_active_orders(user_id: AuthGuard = Depends(auth)):
             'sum': order.sum,
             'promocode': order.promocode,
             'total sum': order.sum if not order.total_sum else order.total_sum,
-            'payment type': order.pay_type,
+            'payment type': rpt.pay_type_id,
             'type': order.type,
             'address': {'street id': order.address_id, 'house': order.house, 'entrance': order.entrance,
                         'floor': order.floor, 'apartment': order.apartment},
             'restaurant id': order.restaurant_id,
             'comment': order.comment
         })
-    return responce_list
+    return response_list
 
 
 @orders_router.delete('/cancelOrder', tags=['Orders'])
@@ -85,14 +100,14 @@ async def cancel_order(order_id: int, user_id: AuthGuard = Depends(auth)):
 
 
 @orders_router.post('/finishOrder', tags=['Orders'])
-async def finish_order( pay_type: int, comment: str, house: str, entrance: str, appartment: str, floor: str,
+async def finish_order(comment: str, house: str, entrance: str, appartment: str, floor: str,
                        request: Request,
                        response: Response,
                        user_id: AuthGuard = Depends(auth)):
     await check_all_cookies(request.cookies)
-    if pay_type < 0 or pay_type > 1: raise HTTPException(status_code=400, detail="please pick correct payment variant (0 - cash, 1 - card)")
     order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
     if not order: raise HTTPException(status_code=400, detail="make an order first")
+    pt=await check_order_payment_type(order)
     await validate_menu(order)
     if order.invalid_at <= datetime.now(tz=timezone.utc):
         log = await OrderLog.get(order_id=order.id)
@@ -119,15 +134,22 @@ async def finish_order( pay_type: int, comment: str, house: str, entrance: str, 
     log.items = await GetOrderInJSON(order)
     log.type = type
     log.success_completion_at = datetime.now()
-    await log.save()
+    log.pay_type=pt
     order.comment = comment
     order.house = house
     order.entrance = entrance
     order.apartment = appartment
     order.floor = floor
-    if order.sum >= r.need_valid_sum: order.status = 1
-    if order.sum >= r.max_sum: order.status = 1
-    else: order.status = 2
+    if order.sum >= r.need_valid_sum:
+        order.status = 1
+        log.status = 1
+    if order.sum >= r.max_sum:
+        order.status = 1
+        log.status = 1
+    else:
+        order.status = 2
+        log.status = 2
+    await log.save()
     await order.save()
     if order.promocode_applied:
         promocode = await PromoCode.get(short_name=order.promocode)

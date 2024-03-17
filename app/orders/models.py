@@ -19,8 +19,6 @@ class Order(Model):
     # 4 доставляют
     # 5 доставили
     status = fields.IntField(default=0)
-    # 0 - наличные, 1 - картой при получении, 2 - картой на сайте (пока не делаем функционал)
-    pay_type = fields.IntField(default=1)
     products_count = fields.IntField(ge=0, default=0)
     sum = fields.FloatField(ge=0, default=0)
     total_sum = fields.FloatField(ge=0, default=0)
@@ -45,6 +43,11 @@ class CartItem(Model):
     bonuses = fields.IntField(ge=0,default=0)
 
 
+class OrderPayType(Model):
+    order = fields.ForeignKeyField('models.Order')
+    restaurant_pay_type = fields.ForeignKeyField('models.RestaurantPayType')
+
+
 class OrderLog(Model):
     order_id = fields.IntField()
     items = fields.JSONField(null=True)
@@ -56,6 +59,7 @@ class OrderLog(Model):
     #3 менеджер сказал фейк(опционально)
     status = fields.IntField(default=-1)
     canceled_at = fields.DatetimeField(null=True)
+    pay_type = fields.IntField(null=True)
     paid_at = fields.DatetimeField(null=True)
     success_completion_at = fields.DatetimeField(null=True)
     created_at = fields.DatetimeField(auto_now_add=True)

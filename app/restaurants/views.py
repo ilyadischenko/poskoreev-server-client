@@ -3,7 +3,7 @@ import json
 from urllib import request
 
 from fastapi import HTTPException, APIRouter, Request, Response
-from app.restaurants.models import Restaurant, Address, City
+from app.restaurants.models import Restaurant, Address, City, RestaurantPayType
 from app.orders.models import Order, OrderLog
 restaurant_router = APIRouter(
     prefix="/api/v1/restaurants"
@@ -52,7 +52,7 @@ async def set_street(street: int, request: Request, response: Response):
     if street_query is None:
         raise HTTPException(status_code=404, detail='street not found')
     r = await Restaurant.get(id=street_query.restaurant_id)
-    if not r.delivery: raise HTTPException(status_code=409, detail='unfortunately the restaurant that serves your street temporally doesnt deliver')
+    if not r.delivery: raise HTTPException(status_code=400, detail='unfortunately the restaurant that serves your street temporally doesnt deliver')
     if '_ri' in request.cookies and '_oi' in request.cookies and r.id!=int(request.cookies['_ri']):
         # await Order.filter(id=int(request.cookies['_oi'])).delete()
         # await OrderLog.filter(order_id=int(request.cookies['_oi'])).delete()
@@ -68,5 +68,7 @@ async def get_restaurant_info(request: Request):
     restaurant = await Restaurant.get(id=int(request.cookies['_ri']))
     street = await Address.get(id=int(request.cookies['_si']))
     if not restaurant: raise HTTPException(status_code=404, detail=f"Restaurant {request.cookies['_ri']} not found")
-    return {"open": restaurant.open, "closed": restaurant.closed, "working": restaurant.working,
+    rpt_query = await RestaurantPayType.filter(restaurant_id=restaurant.id, available=True)
+    rpt_list=[rpt.pay_type_id for rpt in rpt_query]
+    return {"open": restaurant.open, "closed": restaurant.closed, "working": restaurant.working, "pay types": rpt_list,
             "min_sum": restaurant.min_sum, "restaurant_address": restaurant.address, "client_address": street.street}

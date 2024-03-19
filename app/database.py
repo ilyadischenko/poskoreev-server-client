@@ -9,6 +9,7 @@ model_paths = ["app.users.models", "app.promocodes.models", "app.products.models
                ]
 
 TORTOISE_ORM = {
+
     "connections": {
         "default": "postgres://gzabjmhg:jm4CMJAWNG8itVAWRpGKUdSGcFt6rql7@cornelius.db.elephantsql.com/gzabjmhg",
         # "default": "postgres://user:1234@localhost:5432/pizza",

@@ -50,18 +50,7 @@ async def check_order_payment_type(order):
     rpt= await RestaurantPayType.get_or_none(available=True, id=opt.restaurant_pay_type_id)
     if not rpt: raise HTTPException(status_code=400, detail="pt unavailable for this r")
     return rpt.pay_type_id
-# async def validate_order(cookies, order):
-#     if '_ri' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick restaurant')
-#     if '_ai' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick address')
-#     _rid = cookies['_ri']
-#     _aid = cookies['_ai']
-#     rid=int(_rid)
-#     aid=int(_aid)
-#     if order.restaurant_id!=rid: raise HTTPException(status_code=400, detail="switch to right one or delete")
-#     if order.address_id!=aid:
-#         order.address_id=aid
-#         await order.save()
-#     return
+
 async def CalculateOrder(order):
     sum = 0
     count = 0
@@ -73,7 +62,7 @@ async def CalculateOrder(order):
         bonuses += item.bonuses
     order.products_count = count
     order.added_bonuses = bonuses
-    order.sum = sum
+    order.sum = int(sum)
     await order.save()
     # return order
 
@@ -180,7 +169,7 @@ async def AddPromocode(order, input_promocode, user_id):
         }
 
     if promocode.type == 2:
-        order.total_sum = round(order.sum * (1 - promocode.effect * 0.01), 2)
+        order.total_sum = round(order.sum * (1 - promocode.effect * 0.01), 0)
         order.promocode_applied = True
         order.promocode_linked = True
         order.promocode = short_promocode

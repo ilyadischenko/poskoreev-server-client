@@ -27,6 +27,7 @@ class Restaurant(Model):
     min_sum = fields.IntField(default=0, ge=0)
     need_valid_sum = fields.IntField(default=3000, ge=0)
     max_sum = fields.IntField(default=20000, ge=0)
+    timezone_UTC = fields.CharField(default='Moscow', max_length=255)
 
 
 class PayType(Model):

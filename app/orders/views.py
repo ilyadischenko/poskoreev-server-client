@@ -166,16 +166,31 @@ async def add_to_order(menu_id: int,
                        response: Response,
                        user_id: AuthGuard = Depends(auth)
                        ):
-    if '_ri' not in request.cookies: raise HTTPException(status_code=400, detail="PLEASE pick restaurant")
+    if '_ri' not in request.cookies: raise HTTPException(status_code=400, detail={
+        'status': 101,
+        'message': "Пожалуйста, выберите ресторан"
+    })
     rid = request.cookies['_ri']
     restaurant = await Restaurant.get(id=int(request.cookies['_ri']), city_id=int(request.cookies['_ci']))
-    if not restaurant: raise HTTPException(status_code=404, detail="we dont have this restaurant")
+    if not restaurant: raise HTTPException(status_code=400, detail={
+        'status': 100,
+        'message': "Пожалуйста, выберите другой ресторан"
+    })
     menu_item = await Menu.get_or_none(id=menu_id, restaurant_id=int(rid), delivery=True)
-    if not menu_item: raise HTTPException(status_code=404, detail=f"Продукт {menu_id} не найден")
-    if not menu_item.in_stock: raise HTTPException(status_code=400, detail="Продукт закончился")
+    if not menu_item: raise HTTPException(status_code=400, detail={
+        'status': 1,
+        'message': "Продукт не найден"
+    })
+    if not menu_item.in_stock: raise HTTPException(status_code=400, detail={
+        'status': 2,
+        'message': "Продукт закончился"
+    })
 
     order = await OrderCheckOrCreate(request.cookies, user_id, response)
-    if order.total_sum + menu_item.price > restaurant.max_sum: raise HTTPException(status_code=402, detail="Достигнут лимит")
+    if order.total_sum + menu_item.price > restaurant.max_sum: raise HTTPException(status_code=400, detail={
+        'status': 3,
+        'message': f"Достигнут лимит корзины"
+    })
 
     cart_item = await CartItem.get_or_none(menu_id=menu_id, order_id=order.id)
     if not cart_item:

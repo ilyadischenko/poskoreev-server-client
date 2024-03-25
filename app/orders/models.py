@@ -33,6 +33,7 @@ class Order(Model):
     promocode = fields.CharField(null=True, max_length=255)
     promocode_applied = fields.BooleanField(default=False)
     promocode_linked = fields.BooleanField(default=False)
+    rating = fields.IntField(null=True, ge=1, le=5)
 
 class CartItem(Model):
     order = fields.ForeignKeyField('models.Order')

@@ -39,16 +39,34 @@ async def OrderCheckOrCreate(cookies, user_id, response):
     return order
 
 async def check_all_cookies(cookies):
-    if '_oi' not in cookies: raise HTTPException(status_code=400, detail="make order first")
-    if '_ci' not in cookies: raise HTTPException(status_code=400, detail="pick city")
-    if '_ri' not in cookies: raise HTTPException(status_code=400, detail="pick restaurant")
-    if '_si' not in cookies: raise HTTPException(status_code=400, detail="pick street")
+    if '_oi' not in cookies: raise HTTPException(status_code=400, detail={
+        'status': 6,
+        'message': "Сначала нужно добавить что-нибудь в корзину"
+    })
+    if '_ci' not in cookies: raise HTTPException(status_code=400, detail={
+        'status': 100,
+        'message': "Пожалуйста, выберите улицу"
+    })
+    if '_ri' not in cookies: raise HTTPException(status_code=400, detail={
+        'status': 100,
+        'message': "Пожалуйста, выберите улицу"
+    })
+    if '_si' not in cookies: raise HTTPException(status_code=400, detail={
+        'status': 100,
+        'message': "Пожалуйста, выберите улицу"
+    })
 
 async def check_order_payment_type(order):
     opt=await OrderPayType.get_or_none(order_id=order.id)
-    if not opt: raise HTTPException(status_code=404, detail="choose pt")
+    if not opt: raise HTTPException(status_code=400, detail={
+        'status': 500,
+        'message': "Выберите способ оплаты"
+    })
     rpt= await RestaurantPayType.get_or_none(available=True, id=opt.restaurant_pay_type_id)
-    if not rpt: raise HTTPException(status_code=400, detail="pt unavailable for this r")
+    if not rpt: raise HTTPException(status_code=400, detail={
+        'status': 500,
+        'message': "К сожалению, сейчас мы не принимает оплату вашим способом"
+    })
     return rpt.pay_type_id
 
 async def CalculateOrder(order):

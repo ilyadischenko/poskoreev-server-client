@@ -14,7 +14,7 @@ orders_router = APIRouter(
 )
 
 @orders_router.post('/choosePaymentType',tags=['Orders'])
-async def choose_payment_type(pay_type : int, request: Request):
+async def choose_payment_type(pay_type: int, request: Request):
     if not '_ri' in request.cookies: raise HTTPException(status_code=400, detail="pick r")
     if not '_oi' in request.cookies: raise HTTPException(status_code=400, detail="make o")
     rpt = await RestaurantPayType.get_or_none(restaurant_id=int(request.cookies['_ri']), pay_type_id=pay_type)
@@ -106,29 +106,56 @@ async def finish_order(comment: str, house: str, entrance: str, appartment: str,
                        user_id: AuthGuard = Depends(auth)):
     await check_all_cookies(request.cookies)
     order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
-    if not order: raise HTTPException(status_code=400, detail="make an order first")
+    if not order: raise HTTPException(status_code=400, detail={
+        'status': 200,
+        'message': "Сначала нужно добавить что-нибудь в корзину"
+    })
     pt=await check_order_payment_type(order)
     await validate_menu(order)
     if order.invalid_at <= datetime.now(tz=timezone.utc):
         log = await OrderLog.get(order_id=order.id)
         log.status = 2
         await log.save()
-        raise HTTPException(status_code=400, detail="order expired")
+        raise HTTPException(status_code=400, detail={
+        'status': 5,
+        'message': "Пожалуйста, сделаейте заказ еще раз"
+    })
     street_query = await Address.get_or_none(id=int(request.cookies['_si']), available=True,
                                              city_id=int(request.cookies['_ci']),
                                              restaurant_id=int(request.cookies['_ri']))
-    if street_query is None: raise HTTPException(status_code=400, detail="address isnt viable anymore")
+    if street_query is None: raise HTTPException(status_code=400, detail={
+        'status': 300,
+        'message': "К сожалению, мы сейчас не доставляем на этот адрес"
+    })
     r = await Restaurant.get(id=int(request.cookies['_ri']), city_id=int(request.cookies['_ci']))
-    if not r: raise HTTPException(status_code=400, detail="we have no restaurant")
-    if r.closed < datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail=f"this restaurant was closed at {r.closed}")
-    if r.open > datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail=f"this restaurant will be opened at {r.open}")
-    if not r.working: raise HTTPException(status_code=400, detail="this restaurant isnt working")
+    if not r: raise HTTPException(status_code=400, detail={
+        'status': 101,
+        'message': "Пожалуйста, выберите другой ресторан"
+    })
+    if r.closed < datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail={
+        'status': 102,
+        'message': "К сожалению, этот ресторан уже закрыт"
+    })
+    if r.open > datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail={
+        'status': 102,
+        'message': "К сожалению, этот ресторан еще закрыт"
+    })
+    if not r.working: raise HTTPException(status_code=400, detail={
+        'status': 103,
+        'message': "К сожалению, этот ресторан сейчас не работает"
+    })
     type = 1
-    if not r.delivery: raise HTTPException(status_code=400, detail="this restaurant doesnt support this type")
+    if not r.delivery: raise HTTPException(status_code=400, detail={
+        'status': 104,
+        'message': "К сожалению, этот ресторан не работает на доставку сейчас"
+    })
 
     await CalculateOrder(order)
 
-    if r.min_sum > order.sum: raise HTTPException(status_code=400, detail=f"too cheap min sum {r.min_sum} while yours {order.sum}")
+    if r.min_sum > order.sum: raise HTTPException(status_code=400, detail={
+        'status': 4,
+        'message': f"Минимальная сумма доставки к вам - {r.min_sum}р"
+    })
     if order.promocode: await validate_promocode(order, order.promocode, user_id)
     log = await OrderLog.get(order_id=order.id)
     log.items = await GetOrderInJSON(order)
@@ -155,7 +182,7 @@ async def finish_order(comment: str, house: str, entrance: str, appartment: str,
         promocode = await PromoCode.get(short_name=order.promocode)
         promocode.count -= 1
         await promocode.save()
-    response.delete_cookie('_oi')
+    response.delete_cookie('_oi', secure=True, samesite='none')
     # send_order_to_tg
     return "done"
 

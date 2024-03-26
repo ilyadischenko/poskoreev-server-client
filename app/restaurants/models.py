@@ -16,8 +16,8 @@ class Address(Model):
 
 class Restaurant(Model):
     id = fields.IntField(pk=True)
-    open = fields.TimeField(null=False, timezone=True)
-    closed = fields.TimeField(null=False, timezone=True)
+    open = fields.TimeField(null=False)
+    closed = fields.TimeField(null=False)
     address = fields.CharField(max_length=255, unique=False)
     delivery = fields.BooleanField(default=True)
     pickup = fields.BooleanField(default=False)
@@ -25,9 +25,9 @@ class Restaurant(Model):
     working = fields.BooleanField(default=True)
     city = fields.ForeignKeyField('models.City')
     min_sum = fields.IntField(default=0, ge=0)
-    need_valid_sum = fields.IntField(default=3000, ge=0)
+    needs_validation_sum = fields.IntField(default=3000, ge=0)
     max_sum = fields.IntField(default=20000, ge=0)
-    timezoneutc = fields.CharField(default='Moscow', max_length=255)
+    timezone_IANA = fields.CharField(default='Europe/Moscow', max_length=255)
 
 
 class PayType(Model):

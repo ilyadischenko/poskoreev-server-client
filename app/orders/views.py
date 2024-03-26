@@ -87,7 +87,7 @@ async def cancel_order(order_id: int, user_id: AuthGuard = Depends(auth)):
     if not order: raise HTTPException(status_code=404, detail="Order finished")
     if not order.status: return "order isnt finished"
     log = await OrderLog.get(order_id=order_id)
-    log.canceled_at = datetime.now()
+    log.canceled_at = datetime.now(tz=timezone.utc)
     log.status=0
     await log.save()
     user = await User.get(id=user_id)
@@ -162,7 +162,7 @@ async def finish_order(comment: str, house: str, entrance: str, appartment: str,
     log = await OrderLog.get(order_id=order.id)
     log.items = await GetOrderInJSON(order)
     log.type = type
-    log.success_completion_at = datetime.now()
+    log.success_completion_at = datetime.now(tz=timezone.utc)
     log.pay_type=pt
     order.comment = comment
     order.house = house

@@ -1,5 +1,4 @@
 from fastapi import HTTPException, APIRouter, Request, Response, Depends
-from tzlocal import get_localzone
 from datetime import datetime, timedelta, timezone
 
 from app.users.models import User, UserJWT, UserBlacklist
@@ -101,7 +100,7 @@ async def send_sms_to(number: str):
     user = await User.get_or_none(number=formatted_number)
     # code = await send_sms()
     code = 1234
-    expires_at = datetime.now(tz=get_localzone()) + timedelta(minutes=10)
+    expires_at = datetime.now(tz=timezone.utc) + timedelta(minutes=10)
     if (not code): raise HTTPException(status_code=500, detail="apparently sms wasnt sent")
     if user:
         if await UserBlacklist.filter(user_id=user.id): raise HTTPException(status_code=403,

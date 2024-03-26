@@ -1,9 +1,9 @@
 import datetime
 import json
 from urllib import request
-
 from fastapi import HTTPException, APIRouter, Request, Response
 from app.restaurants.models import Restaurant, Address, City, RestaurantPayType
+from app.restaurants.service import time_with_tz
 from app.orders.models import Order, OrderLog
 restaurant_router = APIRouter(
     prefix="/api/v1/restaurants"
@@ -57,7 +57,7 @@ async def set_street(street: int, request: Request, response: Response):
     return street_query
 
 @restaurant_router.get('/paytypes', tags=['Restaurants'])
-async def get_restaurant_info(request: Request):
+async def get_restaurant_paytypes_info(request: Request):
     if not '_ri' in request.cookies or not '_si': raise HTTPException(status_code=404, detail='no restaurant set')
     restaurant = await Restaurant.get(id=int(request.cookies['_ri']))
     rpt_query = await RestaurantPayType.filter(restaurant_id=restaurant.id, available=True).prefetch_related('pay_type')
@@ -73,5 +73,5 @@ async def get_restaurant_info(request: Request):
     if not restaurant: raise HTTPException(status_code=404, detail=f"Restaurant {request.cookies['_ri']} not found")
     rpt_query = await RestaurantPayType.filter(restaurant_id=restaurant.id, available=True).prefetch_related('pay_type')
     rpt_list=[{'id': rpt.pay_type_id, 'name': rpt.pay_type.name} for rpt in rpt_query]
-    return {"open": restaurant.open, "closed": restaurant.closed, "working": restaurant.working, "pay_types": rpt_list,
+    return {"open": time_with_tz(restaurant.open, restaurant.timezone_IANA), "closed": time_with_tz(restaurant.closed, restaurant.timezone_IANA), "working": restaurant.working, "pay_types": rpt_list,
             "min_sum": restaurant.min_sum, "restaurant_address": restaurant.address, "client_address": street.street}

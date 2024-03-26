@@ -56,6 +56,15 @@ async def set_street(street: int, request: Request, response: Response):
     response.set_cookie('_si', str(street), httponly=True, secure=True, samesite='none')
     return street_query
 
+@restaurant_router.get('/paytypes', tags=['Restaurants'])
+async def get_restaurant_info(request: Request):
+    if not '_ri' in request.cookies or not '_si': raise HTTPException(status_code=404, detail='no restaurant set')
+    restaurant = await Restaurant.get(id=int(request.cookies['_ri']))
+    rpt_query = await RestaurantPayType.filter(restaurant_id=restaurant.id, available=True).prefetch_related('pay_type')
+    rpt_list=[{'id': rpt.pay_type_id, 'name': rpt.pay_type.name} for rpt in rpt_query]
+    return rpt_list
+
+
 @restaurant_router.get('/', tags=['Restaurants'])
 async def get_restaurant_info(request: Request):
     if not '_ri' in request.cookies or not '_si': raise HTTPException(status_code=404, detail='no restaurant set')

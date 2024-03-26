@@ -19,7 +19,6 @@ async def get_user(
         response: Response,
         request: Request,
 ):
-    print(111)
     is_pick_city = True
     is_pick_street = True
     is_auth = True
@@ -50,7 +49,7 @@ async def get_user(
                 telegram = user.telegram
                 promocodes = await user.get_all_promocodes()
                 bonuses = user.bonuses
-                # active_orders = await check_active_orders(decoded_code['id'])
+                active_orders = await check_active_orders(decoded_code['id'])
 
     if '_ci' not in request.cookies:
         is_pick_city = False

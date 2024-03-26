@@ -18,7 +18,7 @@ async def OrderCheckOrCreate(cookies, user_id, response):
     if '_oi' not in cookies:
         order = await Order.create(restaurant_id=rid, address_id=sid, user_id=user_id,
                                    invalid_at=datetime.now() + timedelta(days=1))
-        await OrderLog.create(order_id=order.pk)
+        await OrderLog.create(order_id=order.id)
 
         response.set_cookie('_oi', value=order.id, httponly=True, secure=True, samesite='none')
         return order
@@ -26,7 +26,7 @@ async def OrderCheckOrCreate(cookies, user_id, response):
     if not order:
         order = await Order.create(restaurant_id=rid, address_id=sid, user_id=user_id,
                                    invalid_at=datetime.now() + timedelta(days=1))
-        await OrderLog.create(order_id=order.pk)
+        await OrderLog.create(order_id=order.id)
         response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
     if order.invalid_at <= datetime.now(tz=timezone.utc):
         log = await OrderLog.get(order_id=order.id)
@@ -34,7 +34,7 @@ async def OrderCheckOrCreate(cookies, user_id, response):
         await log.save()
         order = await Order.create(restaurant_id=rid, address_id=sid, user_id=user_id,
                                    invalid_at=datetime.now() + timedelta(days=1))
-        await OrderLog.create(order_id=order.pk)
+        await OrderLog.create(order_id=order.id)
         response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
     return order
 

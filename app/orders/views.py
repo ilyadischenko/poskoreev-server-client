@@ -17,14 +17,13 @@ orders_router = APIRouter(
 async def choose_payment_type(pay_type: int, request: Request):
     if not '_ri' in request.cookies: raise HTTPException(status_code=400, detail="pick r")
     if not '_oi' in request.cookies: raise HTTPException(status_code=400, detail="make o")
-    rpt = await RestaurantPayType.get_or_none(restaurant_id=int(request.cookies['_ri']), pay_type_id=pay_type)
+    rpt = await RestaurantPayType.get_or_none(restaurant_id=int(request.cookies['_ri']), pay_type_id=pay_type, available=True).prefetch_related('pay_type')
     if not rpt: raise HTTPException(status_code=404, detail="unknown payment type")
-    if not rpt.available: raise HTTPException(status_code=400, detail="currently unavailable")
     opt=await OrderPayType.get_or_none(order_id=int(request.cookies['_oi']))
     if not opt: opt=await OrderPayType.create(order_id=int(request.cookies['_oi']),  restaurant_pay_type_id=rpt.id)
     opt.restaurant_pay_type_id=rpt.id
     await opt.save()
-    return {'id': opt.id}
+    return {'id': rpt.pay_type.id}
 
 @orders_router.get('/getOrder', tags=['Orders'])
 async def get_order(request: Request, responce: Response, user_id: AuthGuard = Depends(auth)):
@@ -43,37 +42,40 @@ async def get_order(request: Request, responce: Response, user_id: AuthGuard = D
 
 @orders_router.get('/checkActiveOrders', tags=['Orders'])
 async def check_active_orders(user_id: AuthGuard = Depends(auth)):
-    active_orders = await Order.filter(user_id=user_id, status__gte=1)
+    active_orders = await Order.filter(user_id=user_id, status__gte=1).prefetch_related('address')
+    print(active_orders)
     response_list = []
     if not active_orders: return response_list
     for order in active_orders:
-        opt = await OrderPayType.get(order_id=order.id)
-        rpt = await RestaurantPayType.get_or_none(id=opt.restaurant_pay_type_id, restaurant_id=order.restaurant_id)
-        if not rpt: raise HTTPException(status_code=404, detail="someone messed up")
-        cart_list = []
-        items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu')
-        for item in items:
-            cart_list.append({'id': item.menu_id,
-                              'title': item.product.title,
-                              'img': item.product.img,
-                              'quantity': item.quantity,
-                              'unit': item.menu.unit,
-                              'sum': item.sum,
-                              'bonuses': item.bonuses})
+        log = await OrderLog.get(order_id=order.id)
+        # opt = await OrderPayType.get(order_id=order.id)
+        # rpt = await RestaurantPayType.get_or_none(id=opt.restaurant_pay_type, restaurant_id=order.restaurant)
+        # if not rpt: raise HTTPException(status_code=404, detail="someone messed up")
+        # cart_list = []
+        # items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu')
+        # for item in items:
+        #     cart_list.append({'id': item.menu_id,
+        #                       'title': item.product.title,
+        #                       'img': item.product.img,
+        #                       'quantity': item.quantity,
+        #                       'unit': item.menu.unit,
+        #                       'sum': item.sum,
+        #                       'bonuses': item.bonuses})
         response_list.append({
             'order_id': order.id,
             'status': order.status,
-            'items': cart_list,
-            'bonuses': order.added_bonuses,
+            # # 'items': cart_list,
+            # 'bonuses': order.added_bonuses,
             'product_count': order.products_count,
+            'created_at': str(log.created_at)[:-13],
             'sum': order.sum,
-            'promocode': order.promocode,
+            # 'promocode': order.promocode,
             'total_sum': order.sum if not order.total_sum else order.total_sum,
             # 'payment_type': rpt.pay_type_id,
             'type': order.type,
-            'address': {'street id': order.address_id, 'house': order.house, 'entrance': order.entrance,
+            'address': {'street_id': order.address.street, 'house': order.house, 'entrance': order.entrance,
                         'floor': order.floor, 'apartment': order.apartment},
-            'restaurant id': order.restaurant_id,
+            # 'restaurant_id': order.restaurant,
             'comment': order.comment
         })
     return response_list

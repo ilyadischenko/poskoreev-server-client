@@ -71,9 +71,14 @@ async def get_user(
 async def confirm_code(number: str, code: str, response: Response):
     formatted_number = await validate_number(number)
     user = await User.get(number=formatted_number)
-    if datetime.now(timezone.utc) > user.expires_at: raise HTTPException(status_code=408,
-                                                                         detail="Время вышло")
-    if user.code != code: raise HTTPException(status_code=401, detail="code is incorrect")
+    if datetime.now(timezone.utc) > user.expires_at: raise HTTPException(status_code=408, detail={
+                'status': 104,
+                'message': "Время вышло"
+            })
+    if user.code != code: raise HTTPException(status_code=401, detail={
+                'status': 105,
+                'message': "Код не верный"
+            })
     # время токенов в utc
     access = await generateJWT(user.id)
     response.set_cookie('_at', access,
@@ -101,10 +106,15 @@ async def send_sms_to(number: str):
     # code = await send_sms()
     code = 1234
     expires_at = datetime.now(tz=timezone.utc) + timedelta(minutes=10)
-    if (not code): raise HTTPException(status_code=500, detail="apparently sms wasnt sent")
+    if (not code): raise HTTPException(status_code=500, detail={
+                'status': 106,
+                'message': "СМС не было отправлено"
+            })
     if user:
-        if await UserBlacklist.filter(user_id=user.id): raise HTTPException(status_code=403,
-                                                                            detail=f" {number} is in blacklist")
+        if await UserBlacklist.filter(user_id=user.id): raise HTTPException(status_code=403, detail={
+                'status': 107,
+                'message': "Номер в черном списке"
+            })
         user.expires_at = expires_at
         user.code = code
         await user.save()

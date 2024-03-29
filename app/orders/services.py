@@ -9,8 +9,14 @@ from app.users.models import User
 
 
 async def OrderCheckOrCreate(cookies, user_id, response):
-    if '_ri' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick restaurant')
-    if '_si' not in cookies: raise HTTPException(status_code=400, detail='PLEASE pick street')
+    if '_ri' not in cookies: raise HTTPException(status_code=400, detail={
+                'status': 206,
+                'message': "Выберете ресторан"
+            })
+    if '_si' not in cookies: raise HTTPException(status_code=400, detail={
+                'status': 204,
+                'message': "Выберете улицу"
+            })
     _rid = cookies['_ri']
     _sid = cookies['_si']
     rid=int(_rid)
@@ -40,31 +46,31 @@ async def OrderCheckOrCreate(cookies, user_id, response):
 
 async def check_all_cookies(cookies):
     if '_oi' not in cookies: raise HTTPException(status_code=400, detail={
-        'status': 6,
+        'status': 502,
         'message': "Сначала нужно добавить что-нибудь в корзину"
     })
     if '_ci' not in cookies: raise HTTPException(status_code=400, detail={
-        'status': 100,
-        'message': "Пожалуйста, выберите улицу"
+        'status': 202,
+        'message': "Пожалуйста, выберите город"
     })
     if '_ri' not in cookies: raise HTTPException(status_code=400, detail={
-        'status': 100,
-        'message': "Пожалуйста, выберите улицу"
+        'status': 206,
+        'message': "Пожалуйста, выберите рестр"
     })
     if '_si' not in cookies: raise HTTPException(status_code=400, detail={
-        'status': 100,
+        'status': 204,
         'message': "Пожалуйста, выберите улицу"
     })
 
 async def check_order_payment_type(order):
     opt=await OrderPayType.get_or_none(order_id=order.id)
     if not opt: raise HTTPException(status_code=400, detail={
-        'status': 500,
+        'status': 503,
         'message': "Выберите способ оплаты"
     })
     rpt= await RestaurantPayType.get_or_none(available=True, id=opt.restaurant_pay_type_id)
     if not rpt: raise HTTPException(status_code=400, detail={
-        'status': 500,
+        'status': 208,
         'message': "К сожалению, сейчас мы не принимает оплату вашим способом"
     })
     return rpt.pay_type_id
@@ -108,13 +114,19 @@ async def GetOrderInJSON(order):
     }
 
 async def validate_menu(order):
-    list = []
+    listt = []
     items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu')
-    if not items: raise HTTPException(status_code=400, detail= "empty order")
+    if not items: raise HTTPException(status_code=400, detail={
+                'status': 504,
+                'message': "Пустой заказ"
+            })
     for item in items:
         if not item.menu.in_stock or not item.menu.visible:
-            list.append({'id': item.menu_id})
-            raise HTTPException(status_code=400, detail={"these items arent viable": list})
+            listt.append({'id': item.menu_id})
+            raise HTTPException(status_code=400, detail={
+                'status': 402,
+                'message': f"these items arent viable: {listt}"
+            })
     return
 
 async def AddPromocode(order, input_promocode, user_id):
@@ -224,6 +236,7 @@ async def validate_promocode(order, promocode, user_id):
             'promocode': short_promocode,
             'applied': False,
             'linked': False,
+            'status': 301,
             'message': 'Такого промокода не существует',
         })
     # Проверка на привязку промокода юзеру если он не для всех
@@ -240,6 +253,7 @@ async def validate_promocode(order, promocode, user_id):
                 'promocode': short_promocode,
                 'applied': False,
                 'linked': False,
+                'status': 302,
                 'message': 'Такого промокода не существует',
             })
 
@@ -253,6 +267,7 @@ async def validate_promocode(order, promocode, user_id):
             'promocode': short_promocode,
             'applied': False,
             'linked': False,
+            'status': 303,
             'message': 'Промокод недействителен',
         })
     if promocode.min_sum > order.sum:
@@ -265,6 +280,7 @@ async def validate_promocode(order, promocode, user_id):
             'promocode': short_promocode,
             'applied': False,
             'linked': True,
+            'status': 304,
             'message': f'Минимальная сумма заказа для применения промокода {promocode.min_sum}р',
         })
 

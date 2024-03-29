@@ -8,18 +8,28 @@ from app.auth.jwt_handler import decodeJWT
 async def validate_number(phone_number):
     pattern = re.compile(r'^(?:\+7|\b8)\d{10}$')
     if re.match(pattern, phone_number):
-        if(phone_number[0]=="+"):
+        if (phone_number[0] == "+"):
             return phone_number[2::]
         return phone_number[1::]
-    raise HTTPException(status_code=400, detail="these r some random numbers")
+    raise HTTPException(status_code=400, detail={
+                'status': 103,
+                'message': "Не валидный номер"
+            })
+
 
 class AuthGuard:
     async def __call__(self, request: Request):
         if '_at' not in request.cookies:
-            raise HTTPException(status_code=401, detail="Запрещено")
+            raise HTTPException(status_code=401, detail={
+                'status': 101,
+                'message': "Запрещено"
+            })
 
         decoded_code = await decodeJWT(request.cookies.get('_at'))
-        if not decoded_code: raise HTTPException(status_code=401, detail="Не авторизован")
+        if not decoded_code: raise HTTPException(status_code=401, detail={
+            'status': 102,
+            'message': "Не авторизован"
+        })
         return decoded_code['id']
 
 

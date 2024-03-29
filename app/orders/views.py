@@ -66,11 +66,9 @@ async def check_active_orders(user_id: AuthGuard = Depends(auth)):
 
 
         if order.status == 3 and (datetime.now(tz=timezone.utc) - log.success_completion_at).seconds > 3599:
-            print('bolshe')
             continue
 
         if order.status == 4 and (datetime.now(tz=timezone.utc) - log.canceled_at).seconds > 3599:
-            print('bolsheeee')
             continue
 
         response_list.append({

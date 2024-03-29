@@ -4,6 +4,7 @@ from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJS
     validate_promocode, check_all_cookies, check_order_payment_type
 from app.products.models import Menu
 from app.restaurants.models import Restaurant, Address, PayType, RestaurantPayType
+from app.restaurants.service import time_with_tz, datetime_with_tz
 from app.users.models import User
 from app.promocodes.models import PromoCode
 from app.users.service import AuthGuard, auth
@@ -42,32 +43,27 @@ async def get_order(request: Request, responce: Response, user_id: AuthGuard = D
 
 @orders_router.get('/checkActiveOrders', tags=['Orders'])
 async def check_active_orders(user_id: AuthGuard = Depends(auth)):
-    active_orders = await Order.filter(user_id=user_id, status__gte=1).prefetch_related('address')
-    print(active_orders)
+    active_orders = await Order.filter(user_id=user_id, status__gte=1).prefetch_related('address', 'restaurant')
     response_list = []
-    if not active_orders: return response_list
+    if not active_orders: return {'haveActiveOrders': False, 'orders': response_list}
     for order in active_orders:
         log = await OrderLog.get(order_id=order.id)
-        # opt = await OrderPayType.get(order_id=order.id)
-        # rpt = await RestaurantPayType.get_or_none(id=opt.restaurant_pay_type, restaurant_id=order.restaurant)
-        # if not rpt: raise HTTPException(status_code=404, detail="someone messed up")
-        # cart_list = []
-        # items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu')
-        # for item in items:
-        #     cart_list.append({'id': item.menu_id,
-        #                       'title': item.product.title,
-        #                       'img': item.product.img,
-        #                       'quantity': item.quantity,
-        #                       'unit': item.menu.unit,
-        #                       'sum': item.sum,
-        #                       'bonuses': item.bonuses})
+
+
+        if order.status == 3 and (datetime.now(tz=timezone.utc) - log.success_completion_at).seconds > 3599:
+            print('bolshe')
+            continue
+
+        if order.status == 4 and (datetime.now(tz=timezone.utc) - log.canceled_at).seconds > 3599:
+            print('bolsheeee')
+            continue
+
         response_list.append({
             'order_id': order.id,
             'status': order.status,
-            # # 'items': cart_list,
             # 'bonuses': order.added_bonuses,
             'product_count': order.products_count,
-            'created_at': str(log.created_at)[:-13],
+            'created_at': str(datetime_with_tz(log.created_at, order.restaurant.timezone_IANA))[:-13],
             'sum': order.sum,
             # 'promocode': order.promocode,
             'total_sum': order.sum if not order.total_sum else order.total_sum,
@@ -75,10 +71,11 @@ async def check_active_orders(user_id: AuthGuard = Depends(auth)):
             'type': order.type,
             'address': {'street_id': order.address.street, 'house': order.house, 'entrance': order.entrance,
                         'floor': order.floor, 'apartment': order.apartment},
-            # 'restaurant_id': order.restaurant,
             'comment': order.comment
         })
-    return response_list
+    if len(response_list) == 0:
+        return {'haveActiveOrders': False, 'orders': []}
+    return {'haveActiveOrders': True, 'orders': response_list}
 
 
 @orders_router.delete('/cancelOrder', tags=['Orders'])
@@ -112,12 +109,11 @@ async def finish_order(comment: str, house: str, entrance: str, appartment: str,
         'status': 200,
         'message': "Сначала нужно добавить что-нибудь в корзину"
     })
-    pt=await check_order_payment_type(order)
+    await check_order_payment_type(order)
     await validate_menu(order)
     if order.invalid_at <= datetime.now(tz=timezone.utc):
-        log = await OrderLog.get(order_id=order.id)
-        log.status = 2
-        await log.save()
+        order.status = -1
+        await order.save()
         raise HTTPException(status_code=400, detail={
         'status': 5,
         'message': "Пожалуйста, сделаейте заказ еще раз"
@@ -161,23 +157,18 @@ async def finish_order(comment: str, house: str, entrance: str, appartment: str,
     if order.promocode: await validate_promocode(order, order.promocode, user_id)
     log = await OrderLog.get(order_id=order.id)
     log.items = await GetOrderInJSON(order)
-    log.type = type
-    log.success_completion_at = datetime.now(tz=timezone.utc)
-    log.pay_type=pt
+    # log.success_completion_at = datetime.now(tz=timezone.utc)
     order.comment = comment
     order.house = house
     order.entrance = entrance
     order.apartment = appartment
     order.floor = floor
-    if order.sum >= r.need_valid_sum:
+    if order.sum >= r.needs_validation_sum:
         order.status = 1
-        log.status = 1
     if order.sum >= r.max_sum:
         order.status = 1
-        log.status = 1
     else:
         order.status = 2
-        log.status = 2
     await log.save()
     await order.save()
     if order.promocode_applied:

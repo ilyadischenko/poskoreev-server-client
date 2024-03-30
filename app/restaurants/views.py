@@ -89,12 +89,18 @@ async def get_restaurant_paytypes_info(request: Request):
 
 @restaurant_router.get('/', tags=['Restaurants'])
 async def get_restaurant_info(request: Request):
-    if not '_ri' in request.cookies or not '_si': raise HTTPException(status_code=404, detail={
-                'status': 206,
-                'message': "Ресторан не выбран"
-            })
-    restaurant = await Restaurant.get(id=int(request.cookies['_ri']))
-    street = await Address.get(id=int(request.cookies['_si']))
+    r = 2
+    a = 1
+    if not '_ri' in request.cookies or not '_si':
+        # raise HTTPException(status_code=404, detail={
+        #         'status': 206,
+        #         'message': "Ресторан не выбран"
+        #     })
+        restaurant = await Restaurant.get(id=2)
+        street = await Address.get(id=1)
+    else:
+        restaurant = await Restaurant.get(id=int(request.cookies['_ri']))
+        street = await Address.get(id=int(request.cookies['_si']))
     if not restaurant: raise HTTPException(status_code=404, detail={
                 'status': 205,
                 'message': "Ресторан не найден"

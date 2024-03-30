@@ -10,7 +10,7 @@ products_router = APIRouter(
 @products_router.get('/', tags=['Products'])
 async def get_products(request: Request):
     if '_ri' not in request.cookies:
-        rid = 1
+        rid = 2
     else:
         rid = request.cookies['_ri']
 

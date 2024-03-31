@@ -96,7 +96,7 @@ async def get_restaurant_info(request: Request, response: Response):
         #     })
         restaurant = await Restaurant.get(id=2)
         street = await Address.get(id=1)
-        response.set_cookie('_ri', 2, secure=True, samesite='none')
+        # response.set_cookie('_ri', 2, secure=True, samesite='none')
         # response.set_cookie('_si', 2, secure=True, samesite='none')
     else:
         restaurant = await Restaurant.get(id=int(request.cookies['_ri']))

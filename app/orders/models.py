@@ -56,10 +56,11 @@ class OrderLog(Model):
     items = fields.JSONField(null=True)
     # -1 в процессе
     # 1 начали готовить
-    # 2 доставляют
-    # 3 доставлен
+    # 2 приготовлен
+    # 3 доставляют
+    # 4 доставлен
 
-    # 4 менеджер сказал фейк(опционально)
+    # 5 менеджер сказал фейк(опционально)
     status = fields.IntField(default=-1)
     created_at = fields.DatetimeField(auto_now_add=True)
     canceled_at = fields.DatetimeField(null=True)

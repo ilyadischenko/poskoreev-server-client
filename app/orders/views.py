@@ -4,11 +4,11 @@ from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJS
     validate_promocode, check_all_cookies, check_order_payment_type
 from app.products.models import Menu
 from app.restaurants.models import Restaurant, Address, PayType, RestaurantPayType
-from app.restaurants.service import time_with_tz, datetime_with_tz
+from app.restaurants.service import datetime_with_tz
 from app.users.models import User
 from app.promocodes.models import PromoCode
 from app.users.service import AuthGuard, auth
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 orders_router = APIRouter(
     prefix="/api/v1/orders"
@@ -172,18 +172,19 @@ async def finish_order(comment: str, house: str, entrance: str, appartment: str,
     })
     if order.promocode: await validate_promocode(order, order.promocode, user_id)
     log = await OrderLog.get(order_id=order.id)
+    log.created_at = datetime.now(tz=timezone.utc)
     log.items = await GetOrderInJSON(order)
-    # log.success_completion_at = datetime.now(tz=timezone.utc)
     order.comment = comment
     order.house = house
     order.entrance = entrance
     order.apartment = appartment
     order.floor = floor
-    if order.sum >= r.needs_validation_sum:
+    if order.total_sum >= r.needs_validation_sum or order.sum >= r.max_sum:
+        print(r.needs_validation_sum)
         order.status = 1
-    if order.sum >= r.max_sum:
-        order.status = 1
-    else:
+    # if order.sum >= r.max_sum:
+    #     order.status = 1
+    if order.total_sum < r.needs_validation_sum and order.sum < r.max_sum:
         order.status = 2
     await log.save()
     await order.save()

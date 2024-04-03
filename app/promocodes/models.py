@@ -17,4 +17,5 @@ class PromoCode(Model):
     min_sum = fields.IntField(null=True)
     #works_with = fields.ManyToManyField('models.ProductCategory')
     is_active = fields.BooleanField(default=True)
+    only_mobile = fields.BooleanField(default=False)
 

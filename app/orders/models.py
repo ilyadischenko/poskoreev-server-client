@@ -54,17 +54,18 @@ class OrderPayType(Model):
 class OrderLog(Model):
     order_id = fields.IntField()
     items = fields.JSONField(null=True)
-    # -1 в процессе
+    # 0 в процессе
     # 1 начали готовить
     # 2 приготовлен
     # 3 доставляют
     # 4 доставлен
 
     # 5 менеджер сказал фейк(опционально)
-    status = fields.IntField(default=-1)
-    created_at = fields.DatetimeField(auto_now_add=True)
+    status = fields.IntField(default=0)
+    created_at = fields.DatetimeField(null=True)
     canceled_at = fields.DatetimeField(null=True)
     start_cooking = fields.DatetimeField(null=True)
+    canceled_cooking = fields.DatetimeField(null=True)
     start_delivering = fields.DatetimeField(null=True)
     success_completion_at = fields.DatetimeField(null=True)
 

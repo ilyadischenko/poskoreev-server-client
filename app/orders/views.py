@@ -180,7 +180,6 @@ async def finish_order(comment: str, house: str, entrance: str, appartment: str,
     order.apartment = appartment
     order.floor = floor
     if order.total_sum >= r.needs_validation_sum or order.sum >= r.max_sum:
-        print(r.needs_validation_sum)
         order.status = 1
     # if order.sum >= r.max_sum:
     #     order.status = 1

@@ -27,7 +27,7 @@ async def get_user(
     telegram = ''
     promocodes = ''
     bonuses = ''
-    active_orders = []
+    # active_orders = []
 
     # decoded_code = None
     if '_at' not in request.cookies:
@@ -43,12 +43,12 @@ async def get_user(
                 response.delete_cookie('_oi', httponly=False)
                 is_auth = False
             else:
-                number = str('8' + user.number)
+                number = str('+7' + user.number)
                 email = user.email
                 telegram = user.telegram
                 promocodes = await user.get_all_promocodes()
                 bonuses = user.bonuses
-                active_orders = await check_active_orders(decoded_code['id'])
+                # active_orders = await check_active_orders(decoded_code['id'])
 
     if '_ci' not in request.cookies:
         is_pick_city = False
@@ -63,7 +63,7 @@ async def get_user(
             'is_auth': is_auth,
             'pick_city': is_pick_city,
             'pick_street': is_pick_street,
-            'active_orders': active_orders
+            # 'active_orders': active_orders
             }
 
 
@@ -85,7 +85,7 @@ async def confirm_code(number: str, code: str, response: Response):
                         expires="Tue, 19 Jan 2038 03:14:07 GMT", secure=True, samesite='none')
     user.code = ''
     await user.save()
-    return {'number': "8" + user.number,
+    return {'number': "+7" + user.number,
             'email': user.email,
             'telegram': user.telegram,
             'promocodes': await user.get_all_promocodes(),

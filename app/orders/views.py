@@ -1,4 +1,8 @@
+
 from fastapi import HTTPException, APIRouter, Depends, Request, Response
+
+
+# from app.orders.eventSourcing import get_orders
 from app.orders.models import Order, CartItem, OrderLog, OrderPayType
 from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJSON, AddPromocode, validate_menu, \
     validate_promocode, check_all_cookies, check_order_payment_type
@@ -8,6 +12,7 @@ from app.restaurants.service import datetime_with_tz
 from app.users.models import User
 from app.promocodes.models import PromoCode
 from app.users.service import AuthGuard, auth
+
 from datetime import datetime, timezone
 
 orders_router = APIRouter(
@@ -56,6 +61,7 @@ async def get_order(request: Request, responce: Response, user_id: AuthGuard = D
         'promocode': promocode
     }
 
+
 @orders_router.get('/checkActiveOrders', tags=['Orders'])
 async def check_active_orders(user_id: AuthGuard = Depends(auth)):
     active_orders = await Order.filter(user_id=user_id, status__gte=1).prefetch_related('address', 'restaurant')
@@ -78,7 +84,6 @@ async def check_active_orders(user_id: AuthGuard = Depends(auth)):
             'product_count': order.products_count,
             'created_at': str(datetime_with_tz(log.created_at, order.restaurant.timezone_IANA))[:-13],
             'sum': order.sum,
-            # 'promocode': order.promocode,
             'total_sum': order.sum if not order.total_sum else order.total_sum,
             # 'payment_type': rpt.pay_type_id,
             'type': order.type,

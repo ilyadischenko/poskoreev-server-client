@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.users.views import user_router
 from app.products.views import products_router
 from app.orders.views import orders_router
+from app.orders.eventSourcing import orders_router as orders_event_router
 from app.restaurants.views import restaurant_router
 
 app = FastAPI(redoc_url=None,
@@ -30,3 +31,4 @@ app.include_router(user_router)
 app.include_router(products_router)
 app.include_router(orders_router)
 app.include_router(restaurant_router)
+app.include_router(orders_event_router)

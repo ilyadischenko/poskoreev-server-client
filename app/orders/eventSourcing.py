@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request, Response, Depends
 from fastapi.responses import StreamingResponse
 
 from app.orders.models import Order, OrderLog
+from app.restaurants.models import Restaurant
 from app.restaurants.service import datetime_with_tz
 from app.users.service import AuthGuard, auth
 
@@ -45,6 +46,11 @@ async def get_active_orders(user_id):
     active_orders = await Order.filter(user_id=user_id, status__gte=1, status__lt=4).prefetch_related('address', 'restaurant')
     response_list = []
     if not active_orders: return {"haveActiveOrders": False, "orders": response_list}
+
+    def get_time_in_tz(time, tz):
+        if time != None:
+            return str(datetime_with_tz(log.created_at, order.restaurant.timezone_IANA).time())[:-10]
+        return ''
     for order in active_orders:
         log = await OrderLog.get(order_id=order.id)
 
@@ -52,12 +58,18 @@ async def get_active_orders(user_id):
         if order.status == 3 and (datetime.now(tz=timezone.utc) - log.success_completion_at).seconds > 1800:
             continue
 
-
-        print("Отправил заказ")
         response_list.append({
             'order_id': order.id,
             'mainStatus': order.status,
             'logStatus': log.status,
+            'logs': {
+                'created_at': get_time_in_tz(log.created_at, order.restaurant.timezone_IANA),
+                'canceled_at': get_time_in_tz(log.canceled_at, order.restaurant.timezone_IANA),
+                'start_cooking': get_time_in_tz(log.start_cooking, order.restaurant.timezone_IANA),
+                'canceled_cooking': get_time_in_tz(log.canceled_cooking, order.restaurant.timezone_IANA),
+                'start_delivering': get_time_in_tz(log.start_delivering, order.restaurant.timezone_IANA),
+                'success_completion_at': get_time_in_tz(log.success_completion_at, order.restaurant.timezone_IANA),
+            },
             # 'bonuses': order.added_bonuses,
             'product_count': order.products_count,
             'created_at': str(datetime_with_tz(log.created_at, order.restaurant.timezone_IANA))[:-13],

@@ -62,6 +62,7 @@ async def get_active_orders(user_id):
             'order_id': order.id,
             'mainStatus': order.status,
             'logStatus': log.status,
+            'items': log.items,
             'logs': {
                 'created_at': get_time_in_tz(log.created_at, order.restaurant.timezone_IANA),
                 'canceled_at': get_time_in_tz(log.canceled_at, order.restaurant.timezone_IANA),

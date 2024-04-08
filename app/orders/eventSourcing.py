@@ -49,7 +49,7 @@ async def get_active_orders(user_id):
 
     def get_time_in_tz(time, tz):
         if time != None:
-            return str(datetime_with_tz(log.created_at, order.restaurant.timezone_IANA).time())[:-10]
+            return str(datetime_with_tz(time, tz).time())[:-10]
         return ''
     for order in active_orders:
         log = await OrderLog.get(order_id=order.id)
@@ -66,7 +66,7 @@ async def get_active_orders(user_id):
                 'created_at': get_time_in_tz(log.created_at, order.restaurant.timezone_IANA),
                 'canceled_at': get_time_in_tz(log.canceled_at, order.restaurant.timezone_IANA),
                 'start_cooking': get_time_in_tz(log.start_cooking, order.restaurant.timezone_IANA),
-                'canceled_cooking': get_time_in_tz(log.canceled_cooking, order.restaurant.timezone_IANA),
+                # 'canceled_cooking': get_time_in_tz(log.canceled_cooking, order.restaurant.timezone_IANA),
                 'start_delivering': get_time_in_tz(log.start_delivering, order.restaurant.timezone_IANA),
                 'success_completion_at': get_time_in_tz(log.success_completion_at, order.restaurant.timezone_IANA),
             },

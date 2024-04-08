@@ -31,7 +31,7 @@ async def set_city(city: int, request: Request, response: Response):
         response.delete_cookie('_ri', httponly=True)
         if '_oi' in request.cookies:
             response.delete_cookie('_oi')
-    response.set_cookie('_ci', str(city), httponly=True, secure=True, samesite='none')
+    response.set_cookie('_ci', str(city), expires="Tue, 19 Jan 2038 03:14:07 GMT", httponly=True, secure=True, samesite='none')
     return query
 
 
@@ -67,8 +67,8 @@ async def set_street(street: int, request: Request, response: Response):
             })
     if '_ri' in request.cookies and '_oi' in request.cookies and r.id!=int(request.cookies['_ri']):
         response.delete_cookie('_oi', httponly=True, samesite='none', secure=True)
-    response.set_cookie('_ri', str(r.id), httponly=True, secure=True, samesite='none')
-    response.set_cookie('_si', str(street), httponly=True, secure=True, samesite='none')
+    response.set_cookie('_ri', str(r.id), expires="Tue, 19 Jan 2038 03:14:07 GMT", httponly=True, secure=True, samesite='none')
+    response.set_cookie('_si', str(street), expires="Tue, 19 Jan 2038 03:14:07 GMT",  httponly=True, secure=True, samesite='none')
     return street_query
 
 @restaurant_router.get('/paytypes', tags=['Restaurants'])

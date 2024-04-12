@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 
 from fastapi import APIRouter, Request, Response, Depends
@@ -43,7 +43,8 @@ async def order_stream(request: Request, user_id: AuthGuard = Depends(auth)) -> 
 
 
 async def get_active_orders(user_id):
-    active_orders = await Order.filter(user_id=user_id, status__gte=1, status__lt=4).prefetch_related('address', 'restaurant')
+    today = datetime.now(timezone.utc) - timedelta(days=2)
+    active_orders = await Order.filter(user_id=user_id, status__gte=1, status__lt=4, invalid_at__gte=today.strftime("%Y-%m-%d"),).prefetch_related('address', 'restaurant')
     response_list = []
     if not active_orders: return {"haveActiveOrders": False, "orders": response_list}
 
@@ -55,7 +56,7 @@ async def get_active_orders(user_id):
         log = await OrderLog.get(order_id=order.id)
 
 
-        if order.status == 3 and (datetime.now(tz=timezone.utc) - log.success_completion_at).seconds > 1800:
+        if log.status == 4 and (datetime.now(tz=timezone.utc) - log.success_completion_at).seconds > 1800:
             continue
 
         response_list.append({

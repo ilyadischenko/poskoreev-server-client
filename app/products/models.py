@@ -27,4 +27,5 @@ class ProductCategory(Model):
     id = fields.IntField(pk=True)
     type = fields.CharField(max_length=255, unique=True)
     priority = fields.IntField(ge=1)
+    #???
     need_cook = fields.BooleanField(default=False)

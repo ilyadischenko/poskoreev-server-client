@@ -83,6 +83,7 @@ async def get_active_orders(user_id):
             'comment': order.comment
         })
     if len(response_list) == 0:
+        #has*
         return {"haveActiveOrders": False, "orders": []}
     return {"haveActiveOrders": True, "orders": response_list}
 

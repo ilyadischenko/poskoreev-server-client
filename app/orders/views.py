@@ -1,58 +1,51 @@
-
 from fastapi import HTTPException, APIRouter, Depends, Request, Response
 
 from app.orders.eventSourcing import get_active_orders
 # from app.orders.eventSourcing import get_orders
 from app.orders.models import Order, CartItem, OrderLog, OrderPayType
 from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJSON, AddPromocode, validate_menu, \
-    validate_promocode, check_all_cookies, check_order_payment_type
+    validate_promocode, check_order_payment_type, CookieCheckerOrder, CCO
 from app.products.models import Menu
 from app.restaurants.models import Restaurant, Address, PayType, RestaurantPayType
 from app.restaurants.service import datetime_with_tz
 from app.users.models import User
 from app.promocodes.models import PromoCode
 from app.users.service import AuthGuard, auth
-
+from app.restaurants.service import time_with_tz, CookieCheckerRestaurant, CCR, CookieCheckerCity, CCC, \
+    CookieCheckerStreet, CCS
 from datetime import datetime, timezone
 
 orders_router = APIRouter(
     prefix="/api/v1/orders"
 )
 
-@orders_router.post('/choosePaymentType',tags=['Orders'])
-async def choose_payment_type(pay_type: int, request: Request):
-    if not '_ri' in request.cookies: raise HTTPException(status_code=400, detail={
-        'status': 206,
-        'message': "Выберете ресторан"
-    })
-    if not '_oi' in request.cookies: raise HTTPException(status_code=400, detail={
-        'status': 502,
-        'message': "Сделайте заказ"
-    })
-    rpt = await RestaurantPayType.get_or_none(restaurant_id=int(request.cookies['_ri']), pay_type_id=pay_type, available=True).prefetch_related('pay_type')
+
+@orders_router.post('/choosePaymentType', tags=['Orders'])
+async def choose_payment_type(pay_type: int, restaurant_id: CookieCheckerRestaurant = Depends(CCR),
+                              order_id: CookieCheckerOrder = Depends(CCO)):
+    rpt = await RestaurantPayType.get_or_none(restaurant_id=restaurant_id, pay_type_id=pay_type,
+                                              available=True).prefetch_related('pay_type')
     if not rpt: raise HTTPException(status_code=404, detail={
         'status': 208,
         'message': "Нет такого способа оплаты"
     })
-    opt=await OrderPayType.get_or_none(order_id=int(request.cookies['_oi']))
-    if not opt: opt=await OrderPayType.create(order_id=int(request.cookies['_oi']),  restaurant_pay_type_id=rpt.id)
-    opt.restaurant_pay_type_id=rpt.id
+    opt = await OrderPayType.get_or_none(order_id=order_id)
+    if not opt: opt = await OrderPayType.create(order_id=order_id, restaurant_pay_type_id=rpt.id)
+    opt.restaurant_pay_type_id = rpt.id
     await opt.save()
     return {'id': rpt.pay_type.id}
 
+
 @orders_router.get('/getOrder', tags=['Orders'])
-async def get_order(request: Request, responce: Response, user_id: AuthGuard = Depends(auth)):
-    if '_oi' not in request.cookies: raise HTTPException(status_code=404, detail={
-        'status': 502,
-        'message': "Нет заказа"
-    })
-    order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
+async def get_order(response: Response, user_id: AuthGuard = Depends(auth),
+                    order_id: CookieCheckerOrder = Depends(CCO)):
+    order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order:
-        responce.delete_cookie('_oi', httponly=True, secure=True, samesite='none')
+        response.delete_cookie('_oi', httponly=True, secure=True, samesite='none')
         raise HTTPException(status_code=404, detail={
-        'status': 502,
-        'message': "Нет заказа"
-    })
+            'status': 501,
+            'message': "Нет заказа"
+        })
 
     promocode = await AddPromocode(order, order.promocode, user_id)
     order = await GetOrderInJSON(order)
@@ -107,7 +100,7 @@ async def cancel_order(order_id: int, user_id: AuthGuard = Depends(auth)):
     if not order.status: return "order isnt finished"
     log = await OrderLog.get(order_id=order_id)
     log.canceled_at = datetime.now(tz=timezone.utc)
-    log.status=0
+    log.status = 0
     await log.save()
     user = await User.get(id=user_id)
     user.bonuses -= order.added_bonuses
@@ -122,11 +115,13 @@ async def cancel_order(order_id: int, user_id: AuthGuard = Depends(auth)):
 
 @orders_router.post('/finishOrder', tags=['Orders'])
 async def finish_order(comment: str, house: str, entrance: str, appartment: str, floor: str,
-                       request: Request,
                        response: Response,
-                       user_id: AuthGuard = Depends(auth)):
-    await check_all_cookies(request.cookies)
-    order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
+                       user_id: AuthGuard = Depends(auth),
+                       order_id: CookieCheckerOrder = Depends(CCO),
+                       street_id: CookieCheckerStreet = Depends(CCS),
+                       city_id: CookieCheckerCity = Depends(CCC),
+                       restaurant_id: CookieCheckerRestaurant = Depends(CCR)):
+    order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order: raise HTTPException(status_code=400, detail={
         'status': 501,
         'message': "Сначала нужно добавить что-нибудь в корзину"
@@ -137,17 +132,17 @@ async def finish_order(comment: str, house: str, entrance: str, appartment: str,
         order.status = -1
         await order.save()
         raise HTTPException(status_code=400, detail={
-        'status': 505,
-        'message': "Пожалуйста, сделаейте заказ еще раз"
-    })
-    street_query = await Address.get_or_none(id=int(request.cookies['_si']), available=True,
-                                             city_id=int(request.cookies['_ci']),
-                                             restaurant_id=int(request.cookies['_ri']))
+            'status': 505,
+            'message': "Пожалуйста, сделаейте заказ еще раз"
+        })
+    street_query = await Address.get_or_none(id=street_id, available=True,
+                                             city_id=city_id,
+                                             restaurant_id=restaurant_id)
     if street_query is None: raise HTTPException(status_code=400, detail={
         'status': 207,
         'message': "К сожалению, мы сейчас не доставляем на этот адрес"
     })
-    r = await Restaurant.get(id=int(request.cookies['_ri']), city_id=int(request.cookies['_ci']))
+    r = await Restaurant.get(id=restaurant_id, city_id=city_id)
     if not r: raise HTTPException(status_code=400, detail={
         'status': 205,
         'message': "Пожалуйста, выберите другой ресторан"
@@ -158,7 +153,7 @@ async def finish_order(comment: str, house: str, entrance: str, appartment: str,
     })
     if r.open > datetime.now(timezone.utc).timetz(): raise HTTPException(status_code=400, detail={
         'status': 209,
-            'message': "К сожалению, этот ресторан еще закрыт"
+        'message': "К сожалению, этот ресторан еще закрыт"
     })
     if not r.working: raise HTTPException(status_code=400, detail={
         'status': 210,
@@ -206,19 +201,16 @@ async def finish_order(comment: str, house: str, entrance: str, appartment: str,
 async def add_to_order(menu_id: int,
                        request: Request,
                        response: Response,
-                       user_id: AuthGuard = Depends(auth)
-                       ):
-    if '_ri' not in request.cookies: raise HTTPException(status_code=400, detail={
-        'status': 206,
-        'message': "Пожалуйста, выберите ресторан"
-    })
-    rid = request.cookies['_ri']
-    restaurant = await Restaurant.get(id=int(request.cookies['_ri']), city_id=int(request.cookies['_ci']))
+                       user_id: AuthGuard = Depends(auth),
+                       restaurant_id: CookieCheckerRestaurant = Depends(CCR),
+                       street_id: CookieCheckerStreet = Depends(CCS),
+                       city_id: CookieCheckerCity = Depends(CCC)):
+    restaurant = await Restaurant.get_or_none(id=restaurant_id, city_id=city_id)
     if not restaurant: raise HTTPException(status_code=400, detail={
         'status': 205,
         'message': "Пожалуйста, выберите другой ресторан"
     })
-    menu_item = await Menu.get_or_none(id=menu_id, restaurant_id=int(rid), delivery=True)
+    menu_item = await Menu.get_or_none(id=menu_id, restaurant_id=restaurant_id, delivery=True)
     if not menu_item: raise HTTPException(status_code=400, detail={
         'status': 401,
         'message': "Продукт не найден"
@@ -228,7 +220,7 @@ async def add_to_order(menu_id: int,
         'message': "Продукт закончился"
     })
 
-    order = await OrderCheckOrCreate(request.cookies, user_id, response)
+    order = await OrderCheckOrCreate(request.cookies, user_id, response, restaurant_id, street_id)
     if order.total_sum + menu_item.price > restaurant.max_sum: raise HTTPException(status_code=400, detail={
         'status': 213,
         'message': f"Достигнут лимит корзины"
@@ -256,16 +248,11 @@ async def add_to_order(menu_id: int,
 
 @orders_router.delete('/removeFromCart', tags=['Orders'])
 async def remove_from_cart(menu_id: int,
-                           request: Request,
-                           user_id: AuthGuard = Depends(auth)
-                           ):
-    if '_oi' not in request.cookies: raise HTTPException(status_code=404, detail={
-        'status': 502,
-        'message': "Заказ не найен"
-    })
-    order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
+                           user_id: AuthGuard = Depends(auth),
+                           order_id: CookieCheckerOrder = Depends(CCO)):
+    order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail="Nothing to remove from")
-    item = await CartItem.get_or_none(menu_id=menu_id, order_id=request.cookies['_oi'])
+    item = await CartItem.get_or_none(menu_id=menu_id, order_id=order_id)
     if not item: raise HTTPException(status_code=404, detail="No such product")
     await item.delete()
 
@@ -280,19 +267,15 @@ async def remove_from_cart(menu_id: int,
 
 @orders_router.put('/decreaseQuantity', tags=['Orders'])
 async def decrease_quantity(menu_id: int,
-                            request: Request,
-                            user_id: AuthGuard = Depends(auth)
+                            user_id: AuthGuard = Depends(auth),
+                            order_id: CookieCheckerOrder = Depends(CCO)
                             ):
-    if '_oi' not in request.cookies: raise HTTPException(status_code=404, detail={
-        'status': 502,
-        'message': "Заказ не найден"
-    })
-    order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
+    order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail={
         'status': 501,
         'message': "Не откуда убирать"
     })
-    cart_item = await CartItem.get_or_none(menu_id=menu_id, order_id=request.cookies['_oi'])
+    cart_item = await CartItem.get_or_none(menu_id=menu_id, order_id=order_id)
     if not cart_item: raise HTTPException(status_code=404, detail={
         'status': 504,
         'message': "Нечего понижать"
@@ -323,10 +306,12 @@ async def decrease_quantity(menu_id: int,
 
 @orders_router.post('/addPromocode', tags=['Orders'])
 async def add_promocode(promocode_short_name: str,
-                              request: Request,
-                              response: Response,
-                              user_id: AuthGuard = Depends(auth)):
-    order = await OrderCheckOrCreate(request.cookies, user_id, response)
+                        request: Request,
+                        response: Response,
+                        user_id: AuthGuard = Depends(auth),
+                        restaurant_id: CookieCheckerRestaurant = Depends(CCR),
+                        street_id: CookieCheckerStreet = Depends(CCS)):
+    order = await OrderCheckOrCreate(request.cookies, user_id, response, restaurant_id, street_id)
     promocode = await AddPromocode(order, promocode_short_name, user_id)
     await CalculateOrder(order)
     order = await GetOrderInJSON(order)
@@ -338,13 +323,9 @@ async def add_promocode(promocode_short_name: str,
 
 @orders_router.post('/removePromocode', tags=['Orders'])
 async def remove_promocode(
-        request: Request,
-        user_id: AuthGuard = Depends(auth)):
-    if '_oi' not in request.cookies: raise HTTPException(status_code=404, detail={
-        'status': 502,
-        'message': "Заказ не найден"
-    })
-    order = await Order.get_or_none(id=request.cookies['_oi'], user_id=user_id)
+        user_id: AuthGuard = Depends(auth),
+        order_id: CookieCheckerOrder = Depends(CCO)):
+    order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail={
         'status': 501,
         'message': "Нет заказа"

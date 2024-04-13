@@ -7,22 +7,21 @@ from app.restaurants.models import RestaurantPayType, PayType
 from app.promocodes.models import PromoCode
 from app.users.models import User
 
+class CookieCheckerOrder:
+    async def __call__(self, request: Request):
+        if '_oi' not in request.cookies: raise HTTPException(status_code=400, detail={
+            'status': 502,
+            'message': "Сначала нужно добавить что-нибудь в корзину"
+        })
+        return int(request.cookies['_oi'])
 
-async def OrderCheckOrCreate(cookies, user_id, response):
-    if '_ri' not in cookies: raise HTTPException(status_code=400, detail={
-                'status': 206,
-                'message': "Выберете ресторан"
-            })
-    if '_si' not in cookies: raise HTTPException(status_code=400, detail={
-                'status': 204,
-                'message': "Выберете улицу"
-            })
-    _rid = cookies['_ri']
-    _sid = cookies['_si']
-    rid=int(_rid)
-    sid=int(_sid)
+
+CCO = CookieCheckerOrder()
+
+
+async def OrderCheckOrCreate(cookies, user_id, response, restaurant_id, street_id):
     if '_oi' not in cookies:
-        order = await Order.create(restaurant_id=rid, address_id=sid, user_id=user_id,
+        order = await Order.create(restaurant_id=restaurant_id, address_id=street_id, user_id=user_id,
                                    invalid_at=datetime.now(tz=timezone.utc) + timedelta(days=1))
         await OrderLog.create(order_id=order.id)
 
@@ -30,7 +29,7 @@ async def OrderCheckOrCreate(cookies, user_id, response):
         return order
     order = await Order.get_or_none(id=cookies['_oi'], user=user_id)
     if not order:
-        order = await Order.create(restaurant_id=rid, address_id=sid, user_id=user_id,
+        order = await Order.create(restaurant_id=restaurant_id, address_id=street_id, user_id=user_id,
                                    invalid_at=datetime.now(tz=timezone.utc) + timedelta(days=1))
         await OrderLog.create(order_id=order.id)
         response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
@@ -38,42 +37,26 @@ async def OrderCheckOrCreate(cookies, user_id, response):
         log = await OrderLog.get(order_id=order.id)
         log.status = 2
         await log.save()
-        order = await Order.create(restaurant_id=rid, address_id=sid, user_id=user_id,
+        order = await Order.create(restaurant_id=restaurant_id, address_id=street_id, user_id=user_id,
                                    invalid_at=datetime.now(tz=timezone.utc) + timedelta(days=1))
         await OrderLog.create(order_id=order.id)
         response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
     return order
 
-async def check_all_cookies(cookies):
-    if '_oi' not in cookies: raise HTTPException(status_code=400, detail={
-        'status': 502,
-        'message': "Сначала нужно добавить что-нибудь в корзину"
-    })
-    if '_ci' not in cookies: raise HTTPException(status_code=400, detail={
-        'status': 202,
-        'message': "Пожалуйста, выберите город"
-    })
-    if '_ri' not in cookies: raise HTTPException(status_code=400, detail={
-        'status': 206,
-        'message': "Пожалуйста, выберите рестр"
-    })
-    if '_si' not in cookies: raise HTTPException(status_code=400, detail={
-        'status': 204,
-        'message': "Пожалуйста, выберите улицу"
-    })
 
 async def check_order_payment_type(order):
-    opt=await OrderPayType.get_or_none(order_id=order.id)
+    opt = await OrderPayType.get_or_none(order_id=order.id)
     if not opt: raise HTTPException(status_code=400, detail={
         'status': 503,
         'message': "Выберите способ оплаты"
     })
-    rpt= await RestaurantPayType.get_or_none(available=True, id=opt.restaurant_pay_type_id)
+    rpt = await RestaurantPayType.get_or_none(available=True, id=opt.restaurant_pay_type_id)
     if not rpt: raise HTTPException(status_code=400, detail={
         'status': 208,
         'message': "К сожалению, сейчас мы не принимает оплату вашим способом"
     })
     return rpt.pay_type_id
+
 
 async def CalculateOrder(order):
     sum = 0
@@ -113,13 +96,14 @@ async def GetOrderInJSON(order):
         'total_sum': order.sum if not order.total_sum else order.total_sum
     }
 
+
 async def validate_menu(order):
     listt = []
     items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu')
     if not items: raise HTTPException(status_code=400, detail={
-                'status': 504,
-                'message': "Пустой заказ"
-            })
+        'status': 504,
+        'message': "Пустой заказ"
+    })
     for item in items:
         if not item.menu.in_stock or not item.menu.visible:
             listt.append({'id': item.menu_id})
@@ -128,6 +112,7 @@ async def validate_menu(order):
                 'message': f"these items arent viable: {listt}"
             })
     return
+
 
 async def AddPromocode(order, input_promocode, user_id):
     short_promocode = input_promocode
@@ -172,8 +157,8 @@ async def AddPromocode(order, input_promocode, user_id):
                 'linked': False,
                 'message': 'Такого промокода не существует',
             }
-
-    if promocode.count == 0 or promocode.end_day < datetime.now(timezone.utc) or promocode.start_day > datetime.now(timezone.utc):
+    if promocode.count == 0 or promocode.end_day < datetime.now(timezone.utc) or promocode.start_day > datetime.now(
+            timezone.utc):
         order.total_sum = order.sum
         order.promocode_applied = False
         order.promocode = None
@@ -199,30 +184,57 @@ async def AddPromocode(order, input_promocode, user_id):
         }
 
     if promocode.type == 2:
-        order.total_sum = round(order.sum * (1 - promocode.effect * 0.01), 0)
-        order.promocode_applied = True
-        order.promocode_linked = True
-        order.promocode = short_promocode
-        await order.save()
-        return {
-            'promocode': short_promocode,
-            'applied': True,
-            'linked': True,
-            'message': 'Промокод применён',
-        }
+        total = round(order.sum * (1 - promocode.effect * 0.01), 0)
+        if total >= 1:
+            order.total_sum = total
+            order.promocode_applied = True
+            order.promocode_linked = True
+            order.promocode = short_promocode
+            await order.save()
+            return {
+                'promocode': short_promocode,
+                'applied': True,
+                'linked': True,
+                'message': 'Промокод применён',
+            }
+        else:
+            order.total_sum = order.sum
+            order.promocode_applied = False
+            order.promocode_linked = True
+            order.promocode = short_promocode
+            await order.save()
+            return {
+                'promocode': short_promocode,
+                'applied': False,
+                'linked': True,
+                'message': 'Промокод не может понизить сумму заказа ниже одного рубля'
+            }
     elif promocode.type == 3:
-        order.total_sum = order.sum - promocode.effect
-        order.promocode_applied = True
-        order.promocode_linked = True
-        order.promocode = short_promocode
-        await order.save()
-        return {
-            'promocode': short_promocode,
-            'applied': True,
-            'linked': True,
-            'message': 'Промокод применён',
-        }
-
+        total = order.sum - promocode.effect
+        if total >= 1:
+            order.total_sum = total
+            order.promocode_applied = True
+            order.promocode_linked = True
+            order.promocode = short_promocode
+            await order.save()
+            return {
+                'promocode': short_promocode,
+                'applied': True,
+                'linked': True,
+                'message': 'Промокод применён',
+            }
+        else:
+            order.total_sum = order.sum
+            order.promocode_applied = False
+            order.promocode_linked = True
+            order.promocode = short_promocode
+            await order.save()
+            return {
+                'promocode': short_promocode,
+                'applied': False,
+                'linked': True,
+                'message': 'Промокод не может понизить сумму заказа ниже одного рубля'
+            }
 async def validate_promocode(order, promocode, user_id):
     short_promocode = promocode
     promocode = await PromoCode.get_or_none(short_name=promocode)
@@ -249,7 +261,7 @@ async def validate_promocode(order, promocode, user_id):
             order.promocode = None
             order.promocode_linked = False
             await order.save()
-            raise HTTPException(status_code=400, detail= {
+            raise HTTPException(status_code=400, detail={
                 'promocode': short_promocode,
                 'applied': False,
                 'linked': False,
@@ -257,13 +269,14 @@ async def validate_promocode(order, promocode, user_id):
                 'message': 'Такого промокода не существует',
             })
 
-    if promocode.count==0 or promocode.end_day < datetime.now(timezone.utc) or promocode.start_day > datetime.now(timezone.utc):
+    if promocode.count == 0 or promocode.end_day < datetime.now(timezone.utc) or promocode.start_day > datetime.now(
+            timezone.utc):
         order.total_sum = order.sum
         order.promocode_applied = False
         order.promocode = None
         order.promocode_linked = False
         await order.save()
-        raise HTTPException(status_code=400, detail= {
+        raise HTTPException(status_code=400, detail={
             'promocode': short_promocode,
             'applied': False,
             'linked': False,
@@ -276,7 +289,7 @@ async def validate_promocode(order, promocode, user_id):
         order.promocode = short_promocode
         order.promocode_linked = True
         await order.save()
-        raise HTTPException(status_code=400, detail= {
+        raise HTTPException(status_code=400, detail={
             'promocode': short_promocode,
             'applied': False,
             'linked': True,
@@ -285,16 +298,46 @@ async def validate_promocode(order, promocode, user_id):
         })
 
     if promocode.type == 2:
-        order.total_sum = round(order.sum * (1 - promocode.effect * 0.01), 2)
-        order.promocode_applied = True
-        order.promocode_linked = True
-        order.promocode = short_promocode
-        await order.save()
-        return
+        total = round(order.sum * (1 - promocode.effect * 0.01), 0)
+        if total >= 1:
+            order.total_sum = total
+            order.promocode_applied = True
+            order.promocode_linked = True
+            order.promocode = short_promocode
+            await order.save()
+            return
+        else:
+            order.total_sum = order.sum
+            order.promocode_applied = False
+            order.promocode_linked = True
+            order.promocode = short_promocode
+            await order.save()
+            raise HTTPException(status_code=400, detail={
+                'promocode': short_promocode,
+                'applied': False,
+                'linked': True,
+                'status': 305,
+                'message': 'Промокод не может понизить сумму заказа ниже одного рубля'
+            })
     elif promocode.type == 3:
-        order.total_sum = order.sum - promocode.effect
-        order.promocode_applied = True
-        order.promocode_linked = True
-        order.promocode = short_promocode
-        await order.save()
-        return
+        total = order.sum - promocode.effect
+        if total >= 1:
+            order.total_sum = total
+            order.promocode_applied = True
+            order.promocode_linked = True
+            order.promocode = short_promocode
+            await order.save()
+            return
+        else:
+            order.total_sum = order.sum
+            order.promocode_applied = False
+            order.promocode_linked = True
+            order.promocode = short_promocode
+            await order.save()
+            raise HTTPException(status_code=400, detail={
+                'promocode': short_promocode,
+                'applied': False,
+                'linked': True,
+                'status': 305,
+                'message': 'Промокод не может понизить сумму заказа ниже одного рубля'
+            })

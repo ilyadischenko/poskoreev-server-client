@@ -21,7 +21,8 @@ CCO = CookieCheckerOrder()
 
 async def OrderCheckOrCreate(cookies, user_id, response, restaurant_id, street_id):
     if '_oi' not in cookies:
-        order = await Order.create(restaurant_id=restaurant_id, address_id=street_id, user_id=user_id,
+        order = await Order.create(restaurant_id=restaurant_id, address_id=street_id,
+                                   user_id=user_id,
                                    invalid_at=datetime.now(tz=timezone.utc) + timedelta(days=1))
         await OrderLog.create(order_id=order.id)
 
@@ -50,12 +51,12 @@ async def check_order_payment_type(order):
         'status': 503,
         'message': "Выберите способ оплаты"
     })
-    rpt = await RestaurantPayType.get_or_none(available=True, id=opt.restaurant_pay_type_id)
+    rpt = await RestaurantPayType.get_or_none(available=True, id=opt.restaurant_pay_type_id).prefetch_related('pay_type')
     if not rpt: raise HTTPException(status_code=400, detail={
         'status': 208,
         'message': "К сожалению, сейчас мы не принимает оплату вашим способом"
     })
-    return rpt.pay_type_id
+    return rpt.pay_type
 
 
 async def CalculateOrder(order):
@@ -91,11 +92,43 @@ async def GetOrderInJSON(order):
         'bonuses': order.added_bonuses,
         'product_count': order.products_count,
         'sum': order.sum,
-        'promocode': order.promocode,
-        'valid': order.promocode_applied,
+        # 'promocode': order.promocode,
+        # 'valid': order.promocode_applied,
         'total_sum': order.sum if not order.total_sum else order.total_sum
     }
 
+async def GetOrderSnapshotInJSON(order, paytype):
+    cart_list = []
+    items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu').order_by('id')
+    for item in items:
+        cart_list.append({'id': item.menu_id,
+                          'title': item.product.title,
+                          'img': item.product.img,
+                          'quantity': item.quantity,
+                          'unit': item.menu.unit,
+                          'size': item.menu.size,
+                          'sum': item.sum,
+                          'bonuses': item.bonuses})
+    return {
+        'id': order.id,
+        'user': order.user.id,
+        'restaurant': order.restaurant.id,
+        'address': {
+            'street': order.address.street,
+            'house': order.house,
+            'entrance': order.entrance,
+            'floor': order.floor,
+            'apartment': order.apartment,
+        },
+        'comment': order.comment,
+        'type': order.type,
+        'items': cart_list,
+        'bonuses': order.added_bonuses,
+        'product_count': order.products_count,
+        'sum': order.sum,
+        'paytype': paytype.name,
+        'total_sum': order.sum if not order.total_sum else order.total_sum
+    }
 
 async def validate_menu(order):
     listt = []

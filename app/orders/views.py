@@ -1,17 +1,15 @@
 from fastapi import HTTPException, APIRouter, Depends, Request, Response
 
 from app.orders.eventSourcing import get_active_orders
-# from app.orders.eventSourcing import get_orders
 from app.orders.models import Order, CartItem, OrderLog, OrderPayType
 from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJSON, AddPromocode, validate_menu, \
-    validate_promocode, check_order_payment_type, CookieCheckerOrder, CCO
+    validate_promocode, check_order_payment_type, CookieCheckerOrder, CCO, GetOrderSnapshotInJSON
 from app.products.models import Menu
-from app.restaurants.models import Restaurant, Address, PayType, RestaurantPayType
-from app.restaurants.service import datetime_with_tz
+from app.restaurants.models import Restaurant, Address, RestaurantPayType
 from app.users.models import User
 from app.promocodes.models import PromoCode
 from app.users.service import AuthGuard, auth
-from app.restaurants.service import time_with_tz, CookieCheckerRestaurant, CCR, CookieCheckerCity, CCC, \
+from app.restaurants.service import CookieCheckerRestaurant, CCR, CookieCheckerCity, CCC, \
     CookieCheckerStreet, CCS
 from datetime import datetime, timezone
 
@@ -121,12 +119,12 @@ async def finish_order(comment: str, house: str, entrance: str, appartment: str,
                        street_id: CookieCheckerStreet = Depends(CCS),
                        city_id: CookieCheckerCity = Depends(CCC),
                        restaurant_id: CookieCheckerRestaurant = Depends(CCR)):
-    order = await Order.get_or_none(id=order_id, user_id=user_id)
+    order = await Order.get_or_none(id=order_id, user_id=user_id).prefetch_related('address', 'restaurant', 'user')
     if not order: raise HTTPException(status_code=400, detail={
         'status': 501,
         'message': "Сначала нужно добавить что-нибудь в корзину"
     })
-    await check_order_payment_type(order)
+    paytype = await check_order_payment_type(order)
     await validate_menu(order)
     if order.invalid_at <= datetime.now(tz=timezone.utc):
         order.status = -1
@@ -174,16 +172,15 @@ async def finish_order(comment: str, house: str, entrance: str, appartment: str,
     if order.promocode: await validate_promocode(order, order.promocode, user_id)
     log = await OrderLog.get(order_id=order.id)
     log.created_at = datetime.now(tz=timezone.utc)
-    log.items = await GetOrderInJSON(order)
     order.comment = comment
     order.house = house
     order.entrance = entrance
     order.apartment = appartment
     order.floor = floor
+    log.items = await GetOrderSnapshotInJSON(order, paytype)
+
     if order.total_sum >= r.needs_validation_sum or order.sum >= r.max_sum:
         order.status = 1
-    # if order.sum >= r.max_sum:
-    #     order.status = 1
     if order.total_sum < r.needs_validation_sum and order.sum < r.max_sum:
         order.status = 2
     await log.save()
@@ -210,7 +207,7 @@ async def add_to_order(menu_id: int,
         'status': 205,
         'message': "Пожалуйста, выберите другой ресторан"
     })
-    menu_item = await Menu.get_or_none(id=menu_id, restaurant_id=restaurant_id, delivery=True)
+    menu_item = await Menu.get_or_none(id=menu_id, restaurant_id=restaurant_id, delivery=True).prefetch_related('product')
     if not menu_item: raise HTTPException(status_code=400, detail={
         'status': 401,
         'message': "Продукт не найден"
@@ -225,7 +222,6 @@ async def add_to_order(menu_id: int,
         'status': 213,
         'message': f"Достигнут лимит корзины"
     })
-
     cart_item = await CartItem.get_or_none(menu_id=menu_id, order_id=order.id)
     if not cart_item:
         item = CartItem(order_id=order.id, product_id=menu_item.product_id, menu_id=menu_item.id, quantity=1,
@@ -251,9 +247,9 @@ async def remove_from_cart(menu_id: int,
                            user_id: AuthGuard = Depends(auth),
                            order_id: CookieCheckerOrder = Depends(CCO)):
     order = await Order.get_or_none(id=order_id, user_id=user_id)
-    if not order: raise HTTPException(status_code=404, detail="Nothing to remove from")
+    if not order: raise HTTPException(status_code=400, detail="Nothing to remove from")
     item = await CartItem.get_or_none(menu_id=menu_id, order_id=order_id)
-    if not item: raise HTTPException(status_code=404, detail="No such product")
+    if not item: raise HTTPException(status_code=400, detail="No such product")
     await item.delete()
 
     await CalculateOrder(order)

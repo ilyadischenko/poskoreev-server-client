@@ -7,7 +7,7 @@ from tortoise.fields import JSONField
 
 class Order(Model):
     id = fields.IntField(pk=True, auto_increment=True)
-    user = fields.ForeignKeyField('models.User')
+    user = fields.ForeignKeyField('models.User', null=True)
     restaurant = fields.ForeignKeyField('models.Restaurant')
     # 0 - inside 1 - delivery 2 - pickup
     type = fields.IntField(default=1)
@@ -24,7 +24,7 @@ class Order(Model):
     sum = fields.FloatField(ge=0, default=0)
     total_sum = fields.FloatField(ge=0, default=0)
 
-    address = fields.ForeignKeyField('models.Address')
+    address = fields.ForeignKeyField('models.Address', null=True)
     house = fields.CharField(max_length=255, null=True)
     entrance = fields.CharField(max_length=255, null=True)
     floor = fields.CharField(max_length=255, null=True)

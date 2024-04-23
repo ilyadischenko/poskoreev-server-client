@@ -13,7 +13,6 @@ admin_model_paths = ["app.restaurants.admin"]
 TORTOISE_ORM = {
 
     "connections": {
-        # "default": "postgres://gzabjmhg:jm4CMJAWNG8itVAWRpGKUdSGcFt6rql7@cornelius.db.elephantsql.com/gzabjmhg",
         # "default": "postgres://user:1234@localhost:5432/pizza",
         "default": "postgres://gen_user:12345678a@82.97.255.65:5432/pizza",
         # "adminDB": "postgres://ilya:1234@localhost:55001",

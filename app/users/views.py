@@ -69,6 +69,11 @@ async def get_user(
 
 @user_router.post('/confirmcode', tags=['Users'])
 async def confirm_code(number: str, code: str, response: Response):
+    if code == '':
+        raise HTTPException(status_code=401, detail={
+            'status': 105,
+            'message': "Код не верный"
+        })
     formatted_number = await validate_number(number)
     user = await User.get(number=formatted_number)
     if datetime.now(timezone.utc) > user.expires_at: raise HTTPException(status_code=408, detail={
@@ -103,21 +108,29 @@ async def exit(response: Response):
 async def send_sms_to(number: str):
     formatted_number = await validate_number(number)
     user = await User.get_or_none(number=formatted_number)
-    # code = await send_sms()
-    code = 1234
     expires_at = datetime.now(tz=timezone.utc) + timedelta(minutes=10)
-    if (not code): raise HTTPException(status_code=500, detail={
-                'status': 106,
-                'message': "СМС не было отправлено"
-            })
     if user:
         if await UserBlacklist.filter(user_id=user.id): raise HTTPException(status_code=403, detail={
                 'status': 107,
                 'message': "Номер в черном списке"
             })
+        code = await send_sms(number)
+        if not code: raise HTTPException(status_code=500, detail={
+            'status': 106,
+            'message': "СМС не было отправлено"
+        })
+
         user.expires_at = expires_at
         user.code = code
         await user.save()
     else:
+        code = await send_sms(number)
+        if not code: raise HTTPException(status_code=500, detail={
+            'status': 106,
+            'message': "СМС не было отправлено"
+        })
         await User.create(number=formatted_number, code=code, expires_at=expires_at)
+    # code = 1234
+
+
     return f"code was sent to {number} and will expire at {expires_at}"

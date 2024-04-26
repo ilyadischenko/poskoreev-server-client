@@ -2,22 +2,22 @@ import random
 
 import requests
 
+from app.telegram.main import send_message
+
 
 async def send_sms(number):
-    print(number)
-    print('7'+str(number)[1:])
     payload = {
         'service_id': 446,
         'secret_key': 'cd0413a8f095e312e3392ccd7fd8dff3',
         'phone': '7' + str(number)[1:],
-        'nowait': 1,
-        'test': 0
+        'nowait': 0,
+        'test': 1
     }
-
     resp = requests.get('https://api.nerotech.ru/api/v1/call', params=payload).json()
     if resp['status']:
         return resp['code']
     else:
+        await send_message(number, resp['error'])
         return False
 
 

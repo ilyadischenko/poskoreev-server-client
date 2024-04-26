@@ -2,7 +2,7 @@ import random
 
 import requests
 
-from app.telegram.main import send_message
+from app.telegram.main import send_error_auth_message, send_access_call_message
 
 
 async def send_sms(number):
@@ -11,13 +11,14 @@ async def send_sms(number):
         'secret_key': 'cd0413a8f095e312e3392ccd7fd8dff3',
         'phone': '7' + str(number)[1:],
         'nowait': 0,
-        'test': 1
+        'test': 0
     }
     resp = requests.get('https://api.nerotech.ru/api/v1/call', params=payload).json()
     if resp['status']:
+        await send_access_call_message(number)
         return resp['code']
     else:
-        await send_message(number, resp['error'])
+        await send_error_auth_message(number, resp['error'])
         return False
 
 

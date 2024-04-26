@@ -6,19 +6,24 @@ from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
 from aiogram.types import Message
 
-
 TOKEN = '7111584139:AAFQnB7tfYY0_iTv8MoZnNry29J6L3kX3Ao'
 # CHANEL_ID = '-1001860241017'
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
+
 @dp.message(CommandStart())
 async def start(message: Message):
     await message.answer(f'Привет, {html.bold(message.from_user.id)}!')
 
 
-async def send_message(usernumber, error_id):
+async def send_access_call_message(usernumber):
+    await bot.send_message('840481448', text=f'Пользователю: {usernumber}\n'
+                                             f'Отправлен звонок\n')
+
+
+async def send_error_auth_message(usernumber, error_id):
     message = ''
     if error_id == 1:
         message = 'Неверные параметры.'
@@ -43,7 +48,5 @@ async def send_message(usernumber, error_id):
     elif error_id == 12:
         message = 'Номер находится в чёрном списке.'
 
-
     await bot.send_message('840481448', text=f'Ошибка авторизации у: {usernumber}\n'
-                                            f'{message}\n'
-                                            )
+                                             f'{message}\n')

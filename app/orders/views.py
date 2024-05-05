@@ -234,7 +234,7 @@ async def add_to_order(menu_id: int,
         await cart_item.save()
 
     await CalculateOrder(order)
-    promocode = await AddPromocode(order, order.promocode, user_id)
+    promocode = await AddPromocode(order, order.promocode, user_id, restaurant_id)
     order = await GetOrderInJSON(order)
     return {
         'order': order,
@@ -245,7 +245,9 @@ async def add_to_order(menu_id: int,
 @orders_router.delete('/removeFromCart', tags=['Orders'])
 async def remove_from_cart(menu_id: int,
                            user_id: AuthGuard = Depends(auth),
-                           order_id: CookieCheckerOrder = Depends(CCO)):
+                           order_id: CookieCheckerOrder = Depends(CCO),
+                            restaurant_id: CookieCheckerRestaurant = Depends(CCR),
+                           ):
     order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order: raise HTTPException(status_code=400, detail="Nothing to remove from")
     item = await CartItem.get_or_none(menu_id=menu_id, order_id=order_id)
@@ -253,7 +255,7 @@ async def remove_from_cart(menu_id: int,
     await item.delete()
 
     await CalculateOrder(order)
-    promocode = await AddPromocode(order, order.promocode, user_id)
+    promocode = await AddPromocode(order, order.promocode, user_id, restaurant_id)
     order = await GetOrderInJSON(order)
     return {
         'order': order,
@@ -264,7 +266,8 @@ async def remove_from_cart(menu_id: int,
 @orders_router.put('/decreaseQuantity', tags=['Orders'])
 async def decrease_quantity(menu_id: int,
                             user_id: AuthGuard = Depends(auth),
-                            order_id: CookieCheckerOrder = Depends(CCO)
+                            order_id: CookieCheckerOrder = Depends(CCO),
+                            restaurant_id: CookieCheckerRestaurant = Depends(CCR),
                             ):
     order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail={
@@ -292,7 +295,7 @@ async def decrease_quantity(menu_id: int,
 
     await CalculateOrder(order)
 
-    promocode = await AddPromocode(order, order.promocode, user_id)
+    promocode = await AddPromocode(order, order.promocode, user_id, restaurant_id)
     order = await GetOrderInJSON(order)
     return {
         'order': order,
@@ -308,7 +311,7 @@ async def add_promocode(promocode_short_name: str,
                         restaurant_id: CookieCheckerRestaurant = Depends(CCR),
                         street_id: CookieCheckerStreet = Depends(CCS)):
     order = await OrderCheckOrCreate(request.cookies, user_id, response, restaurant_id, street_id)
-    promocode = await AddPromocode(order, promocode_short_name, user_id)
+    promocode = await AddPromocode(order, promocode_short_name, user_id, restaurant_id)
     await CalculateOrder(order)
     order = await GetOrderInJSON(order)
     return {
@@ -320,7 +323,9 @@ async def add_promocode(promocode_short_name: str,
 @orders_router.post('/removePromocode', tags=['Orders'])
 async def remove_promocode(
         user_id: AuthGuard = Depends(auth),
-        order_id: CookieCheckerOrder = Depends(CCO)):
+        order_id: CookieCheckerOrder = Depends(CCO),
+        restaurant_id: CookieCheckerRestaurant = Depends(CCR),
+):
     order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail={
         'status': 501,
@@ -329,7 +334,7 @@ async def remove_promocode(
 
     order.promocode = None
     await order.save()
-    promocode = await AddPromocode(order, order.promocode, user_id)
+    promocode = await AddPromocode(order, order.promocode, user_id, restaurant_id)
     order = await GetOrderInJSON(order)
 
     return {

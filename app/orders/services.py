@@ -147,7 +147,7 @@ async def validate_menu(order):
     return
 
 
-async def AddPromocode(order, input_promocode, user_id):
+async def AddPromocode(order, input_promocode, user_id, restaurant_id):
     short_promocode = input_promocode
     if short_promocode is None or short_promocode == '':
         order.total_sum = order.sum
@@ -174,6 +174,22 @@ async def AddPromocode(order, input_promocode, user_id):
             'linked': False,
             'message': 'Такого промокода не существует',
         }
+
+    if promocode.restaurant_id is not None and promocode.restaurant_id != restaurant_id:
+        print('хуево дело')
+        print(promocode.restaurant_id)
+        order.total_sum = order.sum
+        order.promocode_applied = False
+        order.promocode = None
+        order.promocode_linked = False
+        await order.save()
+        return {
+            'promocode': short_promocode,
+            'applied': False,
+            'linked': False,
+            'message': 'Такого промокода не существует',
+        }
+
     # Проверка на привязку промокода юзеру если он не для всех
     if not promocode.for_all:
         user = await User.get(id=user_id).prefetch_related('promocodes')

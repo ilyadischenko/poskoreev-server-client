@@ -107,13 +107,15 @@ async def exit(response: Response):
 @user_router.post('/login', tags=['Users'])
 async def send_sms_to(number: str):
     formatted_number = await validate_number(number)
+
     user = await User.get_or_none(number=formatted_number)
+    if await UserBlacklist.filter(user_id=user.id): raise HTTPException(status_code=403, detail={
+        'status': 107,
+        'message': "Номер в черном списке"
+    })
     expires_at = datetime.now(tz=timezone.utc) + timedelta(minutes=10)
     if user:
-        if await UserBlacklist.filter(user_id=user.id): raise HTTPException(status_code=403, detail={
-                'status': 107,
-                'message': "Номер в черном списке"
-            })
+
         code = await send_sms(number)
         if not code: raise HTTPException(status_code=500, detail={
             'status': 106,

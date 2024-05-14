@@ -57,6 +57,11 @@ async def get_order(response: Response,
     }
 
 
+@orders_router.get('/checkActiveOrders', tags=['Orders'])
+async def check_active_orders(user_id: AuthGuard = Depends(auth)):
+    return await get_active_orders(user_id)
+
+
 @orders_router.delete('/cancelOrder', tags=['Orders'])
 async def cancel_order(order_id: int, user_id: AuthGuard = Depends(auth)):
     order = await Order.get_or_none(id=order_id, user_id=user_id)

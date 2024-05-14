@@ -19,7 +19,8 @@ orders_router = APIRouter(
 
 
 @orders_router.post('/choosePaymentType', tags=['Orders'])
-async def choose_payment_type(pay_type: int, restaurant_id: CookieCheckerRestaurant = Depends(CCR),
+async def choose_payment_type(pay_type: int,
+                              restaurant_id: CookieCheckerRestaurant = Depends(CCR),
                               order_id: CookieCheckerOrder = Depends(CCO)):
     rpt = await RestaurantPayType.get_or_none(restaurant_id=restaurant_id, pay_type_id=pay_type,
                                               available=True).prefetch_related('pay_type')
@@ -35,8 +36,11 @@ async def choose_payment_type(pay_type: int, restaurant_id: CookieCheckerRestaur
 
 
 @orders_router.get('/getOrder', tags=['Orders'])
-async def get_order(response: Response, user_id: AuthGuard = Depends(auth),
-                    order_id: CookieCheckerOrder = Depends(CCO)):
+async def get_order(response: Response,
+                    user_id: AuthGuard = Depends(auth),
+                    order_id: CookieCheckerOrder = Depends(CCO),
+                    restaurant_id: CookieCheckerRestaurant = Depends(CCR)
+                    ):
     order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order:
         response.delete_cookie('_oi', httponly=True, secure=True, samesite='none')
@@ -45,47 +49,12 @@ async def get_order(response: Response, user_id: AuthGuard = Depends(auth),
             'message': "Нет заказа"
         })
 
-    promocode = await AddPromocode(order, order.promocode, user_id)
+    promocode = await AddPromocode(order, order.promocode, user_id, restaurant_id)
     order = await GetOrderInJSON(order)
     return {
         'order': order,
         'promocode': promocode
     }
-
-
-@orders_router.get('/checkActiveOrders', tags=['Orders'])
-async def check_active_orders(user_id: AuthGuard = Depends(auth)):
-    # active_orders = await Order.filter(user_id=user_id, status__gte=1).prefetch_related('address', 'restaurant')
-    # response_list = []
-    # if not active_orders: return {'haveActiveOrders': False, 'orders': response_list}
-    # for order in active_orders:
-    #     log = await OrderLog.get(order_id=order.id)
-    #
-    #
-    #     if order.status == 3 and (datetime.now(tz=timezone.utc) - log.success_completion_at).seconds > 3599:
-    #         continue
-    #
-    #     if order.status == 4 and (datetime.now(tz=timezone.utc) - log.canceled_at).seconds > 3599:
-    #         continue
-    #
-    #     response_list.append({
-    #         'order_id': order.id,
-    #         'status': order.status,
-    #         # 'bonuses': order.added_bonuses,
-    #         'product_count': order.products_count,
-    #         'created_at': str(datetime_with_tz(log.created_at, order.restaurant.timezone_IANA))[:-13],
-    #         'sum': order.sum,
-    #         'total_sum': order.sum if not order.total_sum else order.total_sum,
-    #         # 'payment_type': rpt.pay_type_id,
-    #         'type': order.type,
-    #         'address': {'street_id': order.address.street, 'house': order.house, 'entrance': order.entrance,
-    #                     'floor': order.floor, 'apartment': order.apartment},
-    #         'comment': order.comment
-    #     })
-    # if len(response_list) == 0:
-    #     return {'haveActiveOrders': False, 'orders': []}
-    # return {'haveActiveOrders': True, 'orders': response_list}
-    return await get_active_orders(user_id)
 
 
 @orders_router.delete('/cancelOrder', tags=['Orders'])

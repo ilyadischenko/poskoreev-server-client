@@ -6,6 +6,15 @@ class City(Model):
     name = fields.CharField(max_length=255, default='')
 
 
+class DeliveryZones(Model):
+    id = fields.IntField(pk=True)
+    name = fields.CharField(max_length=255, null=True)
+    restaurant = fields.ForeignKeyField('models.Restaurant', null=True)
+    city = fields.ForeignKeyField('models.City', null=True)
+    coordinates = fields.JSONField(null=False)
+    is_active = fields.BooleanField(default=True)
+
+
 class Address(Model):
     id = fields.IntField(pk=True)
     street = fields.CharField(max_length=255, unique=True)

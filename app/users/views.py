@@ -1,12 +1,10 @@
-from fastapi import HTTPException, APIRouter, Request, Response, Depends
+from fastapi import HTTPException, APIRouter, Request, Response
 from datetime import datetime, timedelta, timezone
 
-from app.users.models import User, UserJWT, UserBlacklist
-from app.users.service import AuthGuard, auth, validate_number
+from app.users.models import User, UserBlacklist
+from app.users.service import validate_number
 from app.users.sms import send_sms
 from app.auth.jwt_handler import generateJWT, decodeJWT
-from app.promocodes.models import PromoCode
-from app.orders.views import check_active_orders
 
 user_router = APIRouter(
     prefix='/api/v1/users'

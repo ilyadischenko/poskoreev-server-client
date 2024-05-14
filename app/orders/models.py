@@ -13,7 +13,6 @@ class Order(Model):
     type = fields.IntField(default=1)
     invalid_at = fields.DatetimeField()
     added_bonuses = fields.IntField(ge=0, default=0)
-    # -1 истек срок
     # 0 в процессе создания
     # 1 ожидает подтверждение менеджера
     # 2 принят
@@ -35,6 +34,10 @@ class Order(Model):
     promocode_applied = fields.BooleanField(default=False)
     promocode_linked = fields.BooleanField(default=False)
     rating = fields.IntField(null=True, ge=1, le=5)
+
+    class Meta:
+        table = "orders_processing"
+
 
 
 class CartItem(Model):
@@ -59,8 +62,8 @@ class OrderLog(Model):
     # 2 приготовлен
     # 3 доставляют
     # 4 доставлен
+    # 5 Отменен(опционально)
 
-    # 5 менеджер сказал фейк(опционально)
     status = fields.IntField(default=0)
     created_at = fields.DatetimeField(null=True)
     canceled_at = fields.DatetimeField(null=True)
@@ -68,4 +71,8 @@ class OrderLog(Model):
     canceled_cooking = fields.DatetimeField(null=True)
     start_delivering = fields.DatetimeField(null=True)
     success_completion_at = fields.DatetimeField(null=True)
+
+    class Meta:
+        table = "orders"
+
 

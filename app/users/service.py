@@ -3,6 +3,7 @@ import re
 from fastapi import HTTPException, Request
 
 from app.auth.jwt_handler import decodeJWT
+from app.users.models import User
 
 
 async def validate_number(phone_number):
@@ -34,3 +35,26 @@ class AuthGuard:
 
 
 auth = AuthGuard()
+
+
+class AuthGuardUser:
+    async def __call__(self, request: Request):
+        if '_at' not in request.cookies:
+            raise HTTPException(status_code=401, detail={
+                'status': 101,
+                'message': "Запрещено"
+            })
+
+        decoded_code = await decodeJWT(request.cookies.get('_at'))
+        if not decoded_code: raise HTTPException(status_code=401, detail={
+            'status': 102,
+            'message': "Не авторизован"
+        })
+
+        user = User.get_or_none(decoded_code['id'])
+        if not user: raise HTTPException(status_code=401, detail={
+            'status': 102,
+            'message': "Не авторизован"
+        })
+        return user
+

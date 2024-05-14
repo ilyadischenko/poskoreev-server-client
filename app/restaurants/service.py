@@ -27,7 +27,7 @@ class CookieCheckerRestaurant:
     async def __call__(self, request: Request):
         if '_ri' not in request.cookies: raise HTTPException(status_code=400, detail={
             'status': 206,
-            'message': "Пожалуйста, выберите рестр"
+            'message': "Пожалуйста, выберите ресторан"
         })
         return int(request.cookies['_ri'])
 

@@ -1,4 +1,4 @@
-fastapi==0.108.0
+fastapi==0.109.1
 uvicorn==0.25.0
 tortoise-orm[asyncpg]==0.20.0
 pydantic==2.5.3
@@ -9,8 +9,8 @@ pytz==2023.3.post1
 tzlocal==5.2
 aerich==0.7.2
 websockets==12.0
-greensms==2.0.1
 aiogram==3.5.0
+shapely==2.0.4
 
 #pytest==8.0.0
 #pytest-asyncio==0.23.5

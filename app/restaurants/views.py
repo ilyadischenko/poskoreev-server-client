@@ -1,11 +1,15 @@
-import datetime
-import json
-from urllib import request
+import requests
 from fastapi import HTTPException, APIRouter, Request, Response, Depends
-from app.restaurants.models import Restaurant, Address, City, RestaurantPayType
+from shapely.geometry import Point
+from shapely.geometry.polygon import Polygon
+
+from app.app.jwtService import generateJWT, decodeJWT
+from app.app.response import getResponseBody, setResponseCookie
+from app.config import yandex_api_key
+from app.restaurants.models import Restaurant, Address, City, RestaurantPayType, DeliveryZones
+from app.restaurants.schemas import SetAdressSchema
 from app.restaurants.service import time_with_tz, CookieCheckerRestaurant, CCR, CookieCheckerCity, CCC, \
     CookieCheckerStreet, CCS
-from app.orders.models import Order, OrderLog
 
 restaurant_router = APIRouter(
     prefix="/api/v1/restaurants"
@@ -22,7 +26,7 @@ async def get_cities():
 
 @restaurant_router.post('/setcity', tags=['Restaurants'])
 async def set_city(city: int, request: Request, response: Response):
-    #если удалить город из кук, то ресторан, улица и заказ не удалятся
+    # если удалить город из кук, то ресторан, улица и заказ не удалятся
     # проверить на наличие рестика
     query = await City.get_or_none(id=city)
     if query is None: raise HTTPException(status_code=404, detail={
@@ -37,6 +41,93 @@ async def set_city(city: int, request: Request, response: Response):
     response.set_cookie('_ci', str(city), expires="Tue, 19 Jan 2038 03:14:07 GMT", httponly=True, secure=True,
                         samesite='none')
     return query
+
+
+@restaurant_router.get('/findaddres', tags=['Restaurants'])
+async def find_addres(
+        qwery: str,
+        city_id: CookieCheckerCity = Depends(CCC),
+        # user_id: AuthGuard = Depends(auth),
+):
+    """Роут возвращает список улиц, которые отдает яндекс геокодер"""
+
+    city = await City.get_or_none(id=city_id)
+    r = requests.get(
+        url=f'https://geocode-maps.yandex.ru/1.x/?apikey={yandex_api_key}&geocode={city.name}, {qwery}&results=12&format=json')
+
+    if not r.json()['response']['GeoObjectCollection']['featureMember']:
+        return getResponseBody(data={'addresses': []})
+
+    addressList = []
+    for i in r.json()['response']['GeoObjectCollection']['featureMember']:
+        if (i['GeoObject']['metaDataProperty']['GeocoderMetaData']['kind'] == 'house'
+                or i['GeoObject']['metaDataProperty']['GeocoderMetaData']['kind'] == 'entrance'
+                or i['GeoObject']['metaDataProperty']['GeocoderMetaData']['kind'] == 'street'
+        ):
+            addressList.append({
+                'name': i['GeoObject']['name'],
+                'description': i['GeoObject']['description'],
+                'formattedAddress': i['GeoObject']['metaDataProperty']['GeocoderMetaData']['text'],
+                'position': i['GeoObject']['Point']['pos'],
+                'kind': i['GeoObject']['metaDataProperty']['GeocoderMetaData']['kind']
+            })
+
+    return getResponseBody(
+        data={'addresses': addressList, 'r': r.json()['response']['GeoObjectCollection']['featureMember']})
+
+
+@restaurant_router.get('/viewJWT', tags=['Restaurants'])
+async def viewJWT(request: Request):
+    cookie = request.cookies['_picked_address']
+    return decodeJWT(cookie)
+
+
+@restaurant_router.post('/setaddress', tags=['Restaurants'])
+async def setAddress(
+        data: SetAdressSchema,
+        response: Response,
+        city_id: CookieCheckerCity = Depends(CCC),
+):
+    """Роут принимает долготу и широты, проверяет доставляем ли мы туда и зашивает куки адреса с данными"""
+    if data.kind == 'street':
+        return getResponseBody(status=False, errorCode=217, errorMessage='Укажите адрес с домом')
+
+    zones = await DeliveryZones.filter(city_id=city_id, is_active=True).values('coordinates', 'restaurant_id')
+    if not zones:
+        return getResponseBody(status=False, errorCode=215, errorMessage='Пожалуйста, выберите другой город')
+    allowed_coordinates = []
+    for i in zones:
+        allowed_coordinates.append({
+            'coordinates': i['coordinates']['coordinates'],
+            'restaurant': i['restaurant_id']
+        })
+
+    position = data.position.split(' ')
+    longitude = float(position[0])
+    latitude = float(position[1])
+    point = Point(longitude, latitude)
+
+    for e in allowed_coordinates:
+        polygon = Polygon(e['coordinates'])
+        flag = polygon.contains(point)
+        if flag:
+            setResponseCookie(response, name='_ri', data=e['restaurant'])
+            setResponseCookie(response, name='_picked_address', data=generateJWT({
+                'restaurant_id': e['restaurant'],
+                'city_id': city_id,
+                'description': data.description,
+                'formattedAddress': data.formattedAddress,
+                'address': data.address,
+                'longitude': longitude,
+                'latitude': latitude,
+                'entrance': data.entrance,
+                'floor': data.floor,
+                'apartment': data.apartment,
+                'comment': data.comment,
+            }))
+            return getResponseBody(status=True)
+
+    return getResponseBody(status=False, errorCode=216, errorMessage='Сюда мы не доставляем :(')
 
 
 @restaurant_router.get('/getstreets', tags=['Restaurants'])
@@ -54,15 +145,15 @@ async def set_street(street: int, request: Request, response: Response, city_id:
     street_query = await Address.get_or_none(id=int(street), available=True, city_id=city_id)
     if street_query is None:
         raise HTTPException(status_code=404, detail={
-                'status': 203,
-                'message': "Улица не найдена"
-            })
+            'status': 203,
+            'message': "Улица не найдена"
+        })
     r = await Restaurant.get(id=street_query.restaurant_id)
     if not r.delivery: raise HTTPException(status_code=400, detail={
-                'status': 207,
-                'message': "Этот ресторан не доставляет на вашу улицу"
-            })
-    if '_ri' in request.cookies and '_oi' in request.cookies and r.id!=int(request.cookies['_ri']):
+        'status': 207,
+        'message': "Этот ресторан не доставляет на вашу улицу"
+    })
+    if '_ri' in request.cookies and '_oi' in request.cookies and r.id != int(request.cookies['_ri']):
         response.delete_cookie('_oi', httponly=True, samesite='none', secure=True)
     response.set_cookie('_ri', str(r.id), expires="Tue, 19 Jan 2038 03:14:07 GMT", httponly=True, secure=True,
                         samesite='none')
@@ -72,7 +163,7 @@ async def set_street(street: int, request: Request, response: Response, city_id:
 
 
 @restaurant_router.get('/paytypes', tags=['Restaurants'])
-async def get_restaurant_paytypes_info(restaurant_id : CookieCheckerRestaurant = Depends(CCR)):
+async def get_restaurant_paytypes_info(restaurant_id: CookieCheckerRestaurant = Depends(CCR)):
     restaurant = await Restaurant.get(id=restaurant_id)
     rpt_query = await RestaurantPayType.filter(restaurant_id=restaurant.id, available=True).prefetch_related('pay_type')
     rpt_list = [{'id': rpt.pay_type_id, 'name': rpt.pay_type.name} for rpt in rpt_query]
@@ -80,12 +171,8 @@ async def get_restaurant_paytypes_info(restaurant_id : CookieCheckerRestaurant =
 
 
 @restaurant_router.get('/', tags=['Restaurants'])
-async def get_restaurant_info(restaurant_id : CookieCheckerRestaurant = Depends(CCR),
-                              street_id : CookieCheckerStreet = Depends(CCS)):
-        # restaurant = await Restaurant.get(id=2)
-        # street = await Address.get(id=1)
-        # response.set_cookie('_ri', 2, secure=True, samesite='none')
-        # response.set_cookie('_si', 2, secure=True, samesite='none')
+async def get_restaurant_info(restaurant_id: CookieCheckerRestaurant = Depends(CCR),
+                              street_id: CookieCheckerStreet = Depends(CCS)):
     restaurant = await Restaurant.get(id=restaurant_id)
     street = await Address.get(id=street_id)
     if not restaurant: raise HTTPException(status_code=404, detail={

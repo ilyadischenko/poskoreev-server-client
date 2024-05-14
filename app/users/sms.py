@@ -1,5 +1,4 @@
 import random
-
 import requests
 
 from app.telegram.main import send_error_auth_message, send_access_call_message

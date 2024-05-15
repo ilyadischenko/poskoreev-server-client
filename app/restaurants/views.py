@@ -8,8 +8,8 @@ from app.app.response import getResponseBody, setResponseCookie
 from app.config import yandex_api_key
 from app.restaurants.models import Restaurant, Address, City, RestaurantPayType, DeliveryZones
 from app.restaurants.schemas import SetAdressSchema
-from app.restaurants.service import time_with_tz, CookieCheckerRestaurant, CCR, CookieCheckerCity, CCC, \
-    CookieCheckerStreet, CCS
+from app.restaurants.service import (time_with_tz, CookieCheckerRestaurant, CCR, CookieCheckerCity, CCC,
+                                     CookieCheckerAddress, CCA)
 
 restaurant_router = APIRouter(
     prefix="/api/v1/restaurants"
@@ -45,7 +45,7 @@ async def set_city(city: int, request: Request, response: Response):
 
 @restaurant_router.get('/findaddres', tags=['Restaurants'])
 async def find_addres(
-        qwery: str,
+        query: str,
         city_id: CookieCheckerCity = Depends(CCC),
         # user_id: AuthGuard = Depends(auth),
 ):
@@ -53,7 +53,7 @@ async def find_addres(
 
     city = await City.get_or_none(id=city_id)
     r = requests.get(
-        url=f'https://geocode-maps.yandex.ru/1.x/?apikey={yandex_api_key}&geocode={city.name}, {qwery}&results=12&format=json')
+        url=f'https://geocode-maps.yandex.ru/1.x/?apikey={yandex_api_key}&geocode={city.name}, {query}&results=12&format=json')
 
     if not r.json()['response']['GeoObjectCollection']['featureMember']:
         return getResponseBody(data={'addresses': []})
@@ -120,14 +120,14 @@ async def setAddress(
                 'address': data.address,
                 'longitude': longitude,
                 'latitude': latitude,
-                'entrance': data.entrance,
-                'floor': data.floor,
-                'apartment': data.apartment,
-                'comment': data.comment,
+                # 'entrance': data.entrance,
+                # 'floor': data.floor,
+                # 'apartment': data.apartment,
+                # 'comment': data.comment,
             }))
             return getResponseBody(status=True)
 
-    return getResponseBody(status=False, errorCode=216, errorMessage='Сюда мы не доставляем :(')
+    return getResponseBody(status=False, errorCode=216, errorMessage='К сожалению, мы сюда не доставляем :(')
 
 
 @restaurant_router.get('/getstreets', tags=['Restaurants'])
@@ -172,9 +172,9 @@ async def get_restaurant_paytypes_info(restaurant_id: CookieCheckerRestaurant = 
 
 @restaurant_router.get('/', tags=['Restaurants'])
 async def get_restaurant_info(restaurant_id: CookieCheckerRestaurant = Depends(CCR),
-                              street_id: CookieCheckerStreet = Depends(CCS)):
+                              address: CookieCheckerAddress = Depends(CCA)
+                              ):
     restaurant = await Restaurant.get(id=restaurant_id)
-    street = await Address.get(id=street_id)
     if not restaurant: raise HTTPException(status_code=404, detail={
         'status': 205,
         'message': "Ресторан не найден"
@@ -184,4 +184,4 @@ async def get_restaurant_info(restaurant_id: CookieCheckerRestaurant = Depends(C
     return {"open": time_with_tz(restaurant.open, restaurant.timezone_IANA),
             "closed": time_with_tz(restaurant.closed, restaurant.timezone_IANA), "working": restaurant.working,
             "pay_types": rpt_list,
-            "min_sum": restaurant.min_sum, "restaurant_address": restaurant.address, "client_address": street.street}
+            "min_sum": restaurant.min_sum, "restaurant_address": restaurant.address, "client_address": address['address']}

@@ -67,6 +67,7 @@ async def get_user(
 
 @user_router.post('/confirmcode', tags=['Users'])
 async def confirm_code(number: str, code: str, response: Response):
+    # code = 1234
     if code == '':
         raise HTTPException(status_code=401, detail={
             'status': 105,

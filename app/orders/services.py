@@ -19,9 +19,9 @@ class CookieCheckerOrder:
 CCO = CookieCheckerOrder()
 
 
-async def OrderCheckOrCreate(cookies, user_id, response, restaurant_id, street_id):
+async def OrderCheckOrCreate(cookies, user_id, response, restaurant_id, address):
     if '_oi' not in cookies:
-        order = await Order.create(restaurant_id=restaurant_id, address_id=street_id,
+        order = await Order.create(restaurant_id=restaurant_id, address=address,
                                    user_id=user_id,
                                    invalid_at=datetime.now(tz=timezone.utc) + timedelta(days=1))
         await OrderLog.create(order_id=order.id)
@@ -30,7 +30,7 @@ async def OrderCheckOrCreate(cookies, user_id, response, restaurant_id, street_i
         return order
     order = await Order.get_or_none(id=cookies['_oi'], user=user_id)
     if not order:
-        order = await Order.create(restaurant_id=restaurant_id, address_id=street_id, user_id=user_id,
+        order = await Order.create(restaurant_id=restaurant_id, address=address, user_id=user_id,
                                    invalid_at=datetime.now(tz=timezone.utc) + timedelta(days=1))
         await OrderLog.create(order_id=order.id)
         response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
@@ -38,7 +38,7 @@ async def OrderCheckOrCreate(cookies, user_id, response, restaurant_id, street_i
         log = await OrderLog.get(order_id=order.id)
         log.status = 2
         await log.save()
-        order = await Order.create(restaurant_id=restaurant_id, address_id=street_id, user_id=user_id,
+        order = await Order.create(restaurant_id=restaurant_id, address=address, user_id=user_id,
                                    invalid_at=datetime.now(tz=timezone.utc) + timedelta(days=1))
         await OrderLog.create(order_id=order.id)
         response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
@@ -114,8 +114,7 @@ async def GetOrderSnapshotInJSON(order, paytype):
         'user': order.user.id,
         'restaurant': order.restaurant.id,
         'address': {
-            'street': order.address.street,
-            'house': order.house,
+            'street': order.address,
             'entrance': order.entrance,
             'floor': order.floor,
             'apartment': order.apartment,

@@ -44,7 +44,7 @@ async def order_stream(request: Request, user_id: AuthGuard = Depends(auth)) -> 
 
 async def get_active_orders(user_id):
     today = datetime.now(timezone.utc) - timedelta(days=2)
-    active_orders = await Order.filter(user_id=user_id, status__gte=1, status__lt=4, invalid_at__gte=today.strftime("%Y-%m-%d"),).prefetch_related('address', 'restaurant')
+    active_orders = await Order.filter(user_id=user_id, status__gte=1, status__lt=4, invalid_at__gte=today.strftime("%Y-%m-%d"),).prefetch_related('restaurant')
     response_list = []
     if not active_orders: return {"haveActiveOrders": False, "orders": response_list}
 
@@ -79,7 +79,7 @@ async def get_active_orders(user_id):
             'total_sum': order.sum if not order.total_sum else order.total_sum,
             # 'payment_type': rpt.pay_type_id,
             'type': order.type,
-            'address': {'street_id': order.address.street, 'house': order.house, 'entrance': order.entrance,
+            'address': {'address': order.address, 'entrance': order.entrance,
                         'floor': order.floor, 'apartment': order.apartment},
             'comment': order.comment
         })

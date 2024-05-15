@@ -3,6 +3,8 @@ from datetime import datetime
 
 from fastapi import HTTPException, Request
 
+from app.app.jwtService import decodeJWT
+
 
 def time_with_tz(time: datetime, tz: str):
     date = datetime.now().date()
@@ -32,15 +34,17 @@ class CookieCheckerRestaurant:
         return int(request.cookies['_ri'])
 
 
-class CookieCheckerStreet:
+class CookieCheckerAddress:
     async def __call__(self, request: Request):
-        if '_si' not in request.cookies: raise HTTPException(status_code=400, detail={
+        if '_picked_address' not in request.cookies: raise HTTPException(status_code=400, detail={
             'status': 204,
             'message': "Пожалуйста, выберите улицу"
         })
-        return int(request.cookies['_si'])
+        x = decodeJWT(request.cookies['_picked_address'])
+        print(x)
+        return x
 
 
 CCC = CookieCheckerCity()
 CCR = CookieCheckerRestaurant()
-CCS = CookieCheckerStreet()
+CCA = CookieCheckerAddress()

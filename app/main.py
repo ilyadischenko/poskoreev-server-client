@@ -10,11 +10,14 @@ from app.orders.views import orders_router
 from app.orders.eventSourcing import orders_router as orders_event_router
 from app.restaurants.views import restaurant_router
 
-app = FastAPI(redoc_url=None, docs_url=None)
+app = FastAPI(
+    # redoc_url=None,
+    # docs_url=None
+)
 
 init_db(app)
 
-origins = ["http://localhost:3000", "http://localhost:80", "https://poskoreev.ru"]
+origins = ["http://localhost:3000", "https://poskoreev.ru"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

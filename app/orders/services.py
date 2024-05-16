@@ -22,26 +22,20 @@ CCO = CookieCheckerOrder()
 async def OrderCheckOrCreate(cookies, user_id, response, restaurant_id, address):
     if '_oi' not in cookies:
         order = await Order.create(restaurant_id=restaurant_id, address=address,
-                                   user_id=user_id,
-                                   invalid_at=datetime.now(tz=timezone.utc) + timedelta(days=1))
-        await OrderLog.create(order_id=order.id)
-
+                                   user_id=user_id)
         response.set_cookie('_oi', value=order.id, httponly=True, secure=True, samesite='none')
         return order
     order = await Order.get_or_none(id=cookies['_oi'], user=user_id)
     if not order:
-        order = await Order.create(restaurant_id=restaurant_id, address=address, user_id=user_id,
-                                   invalid_at=datetime.now(tz=timezone.utc) + timedelta(days=1))
-        await OrderLog.create(order_id=order.id)
+        order = await Order.create(restaurant_id=restaurant_id, address=address, user_id=user_id)
         response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
-    if order.invalid_at <= datetime.now(tz=timezone.utc):
-        log = await OrderLog.get(order_id=order.id)
-        log.status = 2
-        await log.save()
-        order = await Order.create(restaurant_id=restaurant_id, address=address, user_id=user_id,
-                                   invalid_at=datetime.now(tz=timezone.utc) + timedelta(days=1))
-        await OrderLog.create(order_id=order.id)
-        response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
+    # if order.invalid_at <= datetime.now(tz=timezone.utc):
+    #     order = await Order.create(restaurant_id=restaurant_id, address=address, user_id=user_id,
+    #                                invalid_at=datetime.now(tz=timezone.utc) + timedelta(days=1))
+    #     # await OrderLog.create(order_id=order.id,
+    #     #                       user_id=user_id,
+    #     #                       restaurant_id=restaurant_id, created_at=datetime.now(tz=timezone.utc))
+    #     response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
     return order
 
 
@@ -118,6 +112,11 @@ async def GetOrderSnapshotInJSON(order, paytype):
             'entrance': order.entrance,
             'floor': order.floor,
             'apartment': order.apartment,
+        },
+        'promocode': {
+            'promocode': order.promocode,
+            'promocode_applied': order.promocode_applied,
+            'promocode_linked': order.promocode_linked
         },
         'comment': order.comment,
         'type': order.type,

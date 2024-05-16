@@ -100,13 +100,14 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
     })
     paytype = await check_order_payment_type(order)
     await validate_menu(order)
-    if order.invalid_at <= datetime.now(tz=timezone.utc):
-        order.status = -1
-        await order.save()
-        raise HTTPException(status_code=400, detail={
-            'status': 505,
-            'message': "Пожалуйста, сделаейте заказ еще раз"
-        })
+    # if order.invalid_at <= datetime.now(tz=timezone.utc):
+    #     order.status = -1
+    #     await order.save()
+    #     raise HTTPException(status_code=400, detail={
+    #         'status': 505,
+    #         'message': "Пожалуйста, сделаейте заказ еще раз"
+    #     })
+
     # street_query = await Address.get_or_none(id=street_id, available=True,
     #                                          city_id=city_id,
     #                                          restaurant_id=restaurant_id)
@@ -144,24 +145,34 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
         'message': f"Минимальная сумма доставки к вам - {r.min_sum}р"
     })
     if order.promocode: await validate_promocode(order, order.promocode, user_id)
-    log = await OrderLog.get(order_id=order.id)
-    log.created_at = datetime.now(tz=timezone.utc)
+
+
     order.comment = comment
     order.entrance = entrance
     order.apartment = appartment
     order.floor = floor
-    log.items = await GetOrderSnapshotInJSON(order, paytype)
 
     if order.total_sum >= r.needs_validation_sum or order.sum >= r.max_sum:
         order.status = 1
+        logstatus = 6
     if order.total_sum < r.needs_validation_sum and order.sum < r.max_sum:
         order.status = 2
-    await log.save()
-    await order.save()
+        logstatus = 0
     if order.promocode_applied:
         promocode = await PromoCode.get(short_name=order.promocode)
         promocode.count -= 1
         await promocode.save()
+    await OrderLog.create(
+        order_id=order.id,
+        created_at = order.created_at,
+        items = await GetOrderSnapshotInJSON(order, paytype),
+        status=logstatus,
+        user_id=order.user_id,
+        restaurant_id=order.restaurant_id
+    )
+    await order.delete()
+    await CartItem.filter(order_id=order_id).delete()
+
     response.delete_cookie('_oi', secure=True, samesite='none')
     return "done"
 
@@ -244,7 +255,7 @@ async def decrease_quantity(menu_id: int,
     order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order: raise HTTPException(status_code=404, detail={
         'status': 501,
-        'message': "Не откуда убирать"
+        'message': "Неоткуда убирать"
     })
     cart_item = await CartItem.get_or_none(menu_id=menu_id, order_id=order_id)
     if not cart_item: raise HTTPException(status_code=404, detail={

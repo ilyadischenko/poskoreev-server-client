@@ -6,7 +6,7 @@ from tortoise.models import Model
 class PromoCode(Model):
     id = fields.IntField(pk=True, auto_increment=True)
     restaurant = fields.ForeignKeyField('models.Restaurant', null=True, default=None)
-    short_name = fields.CharField(max_length=255, null=False)
+    short_name = fields.CharField(max_length=255, null=False, unique=True)
     description = fields.CharField(max_length=255, null=True)
     # 1 - продукт, 2 - процент, 3 - рубли
     type = fields.IntField(default=2)

@@ -41,7 +41,6 @@ class CookieCheckerAddress:
             'message': "Пожалуйста, выберите улицу"
         })
         x = decodeJWT(request.cookies['_picked_address'])
-        print(x)
         return x
 
 

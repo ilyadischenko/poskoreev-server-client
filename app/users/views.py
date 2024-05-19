@@ -113,8 +113,7 @@ async def send_sms_to(number: str):
         user.code = code
         await user.save()
     else:
-        if await UserBlacklist.filter(user_id=user.id):
-            return getResponseBody(status=False, errorCode=107, errorMessage='Номер в черном списке')
+
         code = await send_sms(number)
         if not code:
             return getResponseBody(status=False, errorCode=106, errorMessage='Попробуйте еще раз')

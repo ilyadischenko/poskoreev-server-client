@@ -92,12 +92,16 @@ async def setAddress(
     if data.kind == 'street':
         return getResponseBody(status=False, errorCode=217, errorMessage='Укажите адрес с домом')
 
-    zones = await DeliveryZones.filter(city_id=city_id, is_active=True).values('coordinates', 'restaurant_id')
+    zones = await DeliveryZones.filter(city_id=city_id, is_active=True).values('coordinates', 'restaurant_id', 'name', 'id')
     if not zones:
         return getResponseBody(status=False, errorCode=215, errorMessage='Пожалуйста, выберите другой город')
     allowed_coordinates = []
+
     for i in zones:
+        print(i)
         allowed_coordinates.append({
+            'zoneName': i['name'],
+            'zoneId': i['id'],
             'coordinates': i['coordinates']['coordinates'],
             'restaurant': i['restaurant_id']
         })
@@ -112,6 +116,7 @@ async def setAddress(
         flag = polygon.contains(point)
         if flag:
             setResponseCookie(response, name='_ri', data=e['restaurant'])
+            setResponseCookie(response, name='_delivery_zone', data=e['zoneId'])
             setResponseCookie(response, name='_picked_address', data=generateJWT({
                 'restaurant_id': e['restaurant'],
                 'city_id': city_id,
@@ -120,6 +125,8 @@ async def setAddress(
                 'address': data.address,
                 'longitude': longitude,
                 'latitude': latitude,
+                'zone_id': e['zoneId'],
+                'zone_name': e['zoneName']
                 # 'entrance': data.entrance,
                 # 'floor': data.floor,
                 # 'apartment': data.apartment,

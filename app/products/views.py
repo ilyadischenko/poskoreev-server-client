@@ -1,6 +1,7 @@
 from fastapi import HTTPException, APIRouter, Response, Request
 
 from app.products.models import Product, Menu, ProductCategory
+from app.restaurants.models import DeliveryZones
 
 products_router = APIRouter(
     prefix="/api/v1/products"
@@ -9,12 +10,21 @@ products_router = APIRouter(
 
 @products_router.get('/', tags=['Products'])
 async def get_products(request: Request):
-    if '_ri' not in request.cookies:
-        rid = 1
+    if '_delivery_zone' not in request.cookies:
+        delivery = 1
     else:
-        rid = request.cookies['_ri']
+        delivery = request.cookies['_delivery_zone']
+    # if '_ri' not in request.cookies:
+    #     rid = 1
+    # else:
+    #     rid = request.cookies['_ri']
 
-    menu = await Menu.filter(restaurant_id=int(rid)).order_by('size').filter(visible=True, delivery=True).prefetch_related('product', 'category')
+    deliveryzone = await DeliveryZones.get(id=delivery).values('restaurant_id')
+    print(deliveryzone['restaurant_id'])
+
+
+
+    menu = await Menu.filter(restaurant_id=int(deliveryzone['restaurant_id'])).order_by('size').filter(visible=True, delivery=True).prefetch_related('product', 'category')
     products_dict = {}
 
     for i in menu:

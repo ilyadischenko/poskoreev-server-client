@@ -49,7 +49,7 @@ async def get_active_orders(user_id):
                                           Q(Q(status=0), Q(status=1), Q(status=2), Q(status=3), Q(status=4), Q(status=6),
                                             join_type="OR"),
                                             user_id=user_id,
-                                       # , invalid_at__gte=today.strftime("%Y-%m-%d")
+                                            created_at=today.strftime("%Y-%m-%d")
                                        ).prefetch_related('restaurant')
     response_list = []
     if not active_orders: return {"haveActiveOrders": False, "orders": response_list}
@@ -75,16 +75,6 @@ async def get_active_orders(user_id):
                 'start_delivering': get_time_in_tz(order.start_delivering, order.restaurant.timezone_IANA),
                 'success_completion_at': get_time_in_tz(order.success_completion_at, order.restaurant.timezone_IANA),
             },
-            # 'bonuses': order.added_bonuses,
-            # 'product_count': order.items['products_count'],
-            # 'created_at': str(datetime_with_tz(order.created_at, order.restaurant.timezone_IANA))[:-13],
-            # 'sum': order.sum,
-            # 'total_sum': order.sum if not order.total_sum else order.total_sum,
-            # 'payment_type': rpt.pay_type_id,
-            # 'type': order.type,
-            # 'address': {'address': order.address, 'entrance': order.entrance,
-            #             'floor': order.floor, 'apartment': order.apartment},
-            # 'comment': order.comment
         })
     if len(response_list) == 0:
         #has*

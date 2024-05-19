@@ -49,7 +49,7 @@ async def get_active_orders(user_id):
                                           Q(Q(status=0), Q(status=1), Q(status=2), Q(status=3), Q(status=4), Q(status=6),
                                             join_type="OR"),
                                             user_id=user_id,
-                                            created_at=today.strftime("%Y-%m-%d")
+                                            # created_at=today.strftime("%Y-%m-%d")
                                        ).prefetch_related('restaurant')
     response_list = []
     if not active_orders: return {"haveActiveOrders": False, "orders": response_list}

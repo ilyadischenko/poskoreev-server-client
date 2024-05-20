@@ -3,3 +3,10 @@ order_sender_bot_key = '6774260671:AAFuqvwVvSsbtBpLXV_Q0Rp_3yGn676kBhU'
 chanel_id = '-1002029468556'
 
 server_number = 1
+
+
+DB_HOST = ''
+DB_PORT = 5432
+DB_NAME = ''
+DB_USER = ''
+DB_PASS = ''

@@ -1,4 +1,5 @@
 import time
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, APIRouter, Depends, Request, Response
 
@@ -7,14 +8,13 @@ from app.orders.models import Order, CartItem, OrderLog, OrderPayType
 from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJSON, AddPromocode, validate_menu, \
     validate_promocode, check_order_payment_type, CookieCheckerOrder, CCO, GetOrderSnapshotInJSON
 from app.products.models import Menu
-from app.restaurants.models import Restaurant, Address, RestaurantPayType
-from app.telegram.config import send_order_to_tg
+from app.restaurants.models import Restaurant, RestaurantPayType
+from app.telegram.main import send_order_to_tg
 from app.users.models import User
 from app.promocodes.models import PromoCode
 from app.users.service import AuthGuard, auth
 from app.restaurants.service import CookieCheckerRestaurant, CCR, CookieCheckerCity, CCC, \
     CookieCheckerAddress, CCA
-from datetime import datetime, timezone
 
 orders_router = APIRouter(
     prefix="/api/v1/orders"
@@ -177,8 +177,6 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
         user_id=order.user_id,
         restaurant_id=order.restaurant_id
     )
-    for i in saved_order:
-        print('----- ', i)
     await send_order_to_tg(saved_order, user_number)
 
     await order.delete()

@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Request, Response, HTTPException
@@ -20,6 +21,8 @@ CCO = CookieCheckerOrder()
 
 
 async def OrderCheckOrCreate(cookies, user_id, response, restaurant_id, address):
+    start_time = time.time()
+
     if '_oi' not in cookies:
         order = await Order.create(restaurant_id=restaurant_id, address=address,
                                    user_id=user_id)
@@ -36,6 +39,8 @@ async def OrderCheckOrCreate(cookies, user_id, response, restaurant_id, address)
     #     #                       user_id=user_id,
     #     #                       restaurant_id=restaurant_id, created_at=datetime.now(tz=timezone.utc))
     #     response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
+    process_time = time.time() - start_time
+    response.headers["X-check-or-create-order-time"] = str(process_time)
     return order
 
 

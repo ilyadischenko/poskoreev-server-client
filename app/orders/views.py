@@ -1,3 +1,5 @@
+import time
+
 from fastapi import HTTPException, APIRouter, Depends, Request, Response
 
 from app.orders.eventSourcing import get_active_orders
@@ -6,6 +8,7 @@ from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJS
     validate_promocode, check_order_payment_type, CookieCheckerOrder, CCO, GetOrderSnapshotInJSON
 from app.products.models import Menu
 from app.restaurants.models import Restaurant, Address, RestaurantPayType
+from app.telegram.config import send_order_to_tg
 from app.users.models import User
 from app.promocodes.models import PromoCode
 from app.users.service import AuthGuard, auth
@@ -132,7 +135,6 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
         'status': 210,
         'message': "К сожалению, этот ресторан сейчас не работает"
     })
-    type = 1
     if not r.delivery: raise HTTPException(status_code=400, detail={
         'status': 211,
         'message': "К сожалению, этот ресторан не работает на доставку сейчас"
@@ -146,12 +148,13 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
     })
     if order.promocode: await validate_promocode(order, order.promocode, user_id)
 
-
+    order.address = address['address']
     order.comment = comment
     order.entrance = entrance
     order.apartment = appartment
     order.floor = floor
 
+    await order.save()
     if order.total_sum >= r.needs_validation_sum or order.sum >= r.max_sum:
         order.status = 1
         logstatus = 6
@@ -162,7 +165,11 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
         promocode = await PromoCode.get(short_name=order.promocode)
         promocode.count -= 1
         await promocode.save()
-    await OrderLog.create(
+
+    user_number = order.user.number
+    print(user_number)
+
+    saved_order = await OrderLog.create(
         order_id=order.id,
         created_at = order.created_at,
         items = await GetOrderSnapshotInJSON(order, paytype),
@@ -170,6 +177,10 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
         user_id=order.user_id,
         restaurant_id=order.restaurant_id
     )
+    for i in saved_order:
+        print('----- ', i)
+    await send_order_to_tg(saved_order, user_number)
+
     await order.delete()
     await CartItem.filter(order_id=order_id).delete()
 
@@ -216,9 +227,20 @@ async def add_to_order(menu_id: int,
         cart_item.bonuses += menu_item.bonuses
         await cart_item.save()
 
+    start_time = time.time()
     await CalculateOrder(order)
+    process_time = time.time() - start_time
+    response.headers["X-calculate-order-Time"] = str(process_time)
+
+    start_time = time.time()
     promocode = await AddPromocode(order, order.promocode, user_id, restaurant_id)
+    process_time = time.time() - start_time
+    response.headers["X-add-promocode-Time"] = str(process_time)
+
+    start_time = time.time()
     order = await GetOrderInJSON(order)
+    process_time = time.time() - start_time
+    response.headers["X-get-order-in-json-Time"] = str(process_time)
     return {
         'order': order,
         'promocode': promocode

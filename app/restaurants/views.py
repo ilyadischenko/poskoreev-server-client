@@ -6,7 +6,7 @@ from shapely.geometry.polygon import Polygon
 from app.app.jwtService import generateJWT, decodeJWT
 from app.app.response import getResponseBody, setResponseCookie
 from app.config import yandex_api_key
-from app.restaurants.models import Restaurant, Address, City, RestaurantPayType, DeliveryZones
+from app.restaurants.models import Restaurant, City, RestaurantPayType, DeliveryZones
 from app.restaurants.schemas import SetAdressSchema
 from app.restaurants.service import (time_with_tz, CookieCheckerRestaurant, CCR, CookieCheckerCity, CCC,
                                      CookieCheckerAddress, CCA)
@@ -137,36 +137,36 @@ async def setAddress(
     return getResponseBody(status=False, errorCode=216, errorMessage='К сожалению, мы сюда не доставляем :(')
 
 
-@restaurant_router.get('/getstreets', tags=['Restaurants'])
-async def get_streets(city_id: CookieCheckerCity = Depends(CCC)):
-    query = await Address.filter(city_id=city_id, available=True).values('street', 'id')
-    query.sort(key=lambda i: i['street'])
-    return query
+# @restaurant_router.get('/getstreets', tags=['Restaurants'])
+# async def get_streets(city_id: CookieCheckerCity = Depends(CCC)):
+#     query = await Address.filter(city_id=city_id, available=True).values('street', 'id')
+#     query.sort(key=lambda i: i['street'])
+#     return query
 
 
-@restaurant_router.post('/setstreet', tags=['Restaurants'])
-async def set_street(street: int, request: Request, response: Response, city_id: CookieCheckerCity = Depends(CCC)):
-    if (('_ri' not in request.cookies and '_si' in request.cookies and int(request.cookies['_si']) != street)
-            or ('_ri' not in request.cookies and '_si' not in request.cookies)):
-        response.delete_cookie('_oi', httponly=True, samesite='none', secure=True)
-    street_query = await Address.get_or_none(id=int(street), available=True, city_id=city_id)
-    if street_query is None:
-        raise HTTPException(status_code=404, detail={
-            'status': 203,
-            'message': "Улица не найдена"
-        })
-    r = await Restaurant.get(id=street_query.restaurant_id)
-    if not r.delivery: raise HTTPException(status_code=400, detail={
-        'status': 207,
-        'message': "Этот ресторан не доставляет на вашу улицу"
-    })
-    if '_ri' in request.cookies and '_oi' in request.cookies and r.id != int(request.cookies['_ri']):
-        response.delete_cookie('_oi', httponly=True, samesite='none', secure=True)
-    response.set_cookie('_ri', str(r.id), expires="Tue, 19 Jan 2038 03:14:07 GMT", httponly=True, secure=True,
-                        samesite='none')
-    response.set_cookie('_si', str(street), expires="Tue, 19 Jan 2038 03:14:07 GMT", httponly=True, secure=True,
-                        samesite='none')
-    return street_query
+# @restaurant_router.post('/setstreet', tags=['Restaurants'])
+# async def set_street(street: int, request: Request, response: Response, city_id: CookieCheckerCity = Depends(CCC)):
+#     if (('_ri' not in request.cookies and '_si' in request.cookies and int(request.cookies['_si']) != street)
+#             or ('_ri' not in request.cookies and '_si' not in request.cookies)):
+#         response.delete_cookie('_oi', httponly=True, samesite='none', secure=True)
+#     street_query = await Address.get_or_none(id=int(street), available=True, city_id=city_id)
+#     if street_query is None:
+#         raise HTTPException(status_code=404, detail={
+#             'status': 203,
+#             'message': "Улица не найдена"
+#         })
+#     r = await Restaurant.get(id=street_query.restaurant_id)
+#     if not r.delivery: raise HTTPException(status_code=400, detail={
+#         'status': 207,
+#         'message': "Этот ресторан не доставляет на вашу улицу"
+#     })
+#     if '_ri' in request.cookies and '_oi' in request.cookies and r.id != int(request.cookies['_ri']):
+#         response.delete_cookie('_oi', httponly=True, samesite='none', secure=True)
+#     response.set_cookie('_ri', str(r.id), expires="Tue, 19 Jan 2038 03:14:07 GMT", httponly=True, secure=True,
+#                         samesite='none')
+#     response.set_cookie('_si', str(street), expires="Tue, 19 Jan 2038 03:14:07 GMT", httponly=True, secure=True,
+#                         samesite='none')
+#     return street_query
 
 
 @restaurant_router.get('/paytypes', tags=['Restaurants'])

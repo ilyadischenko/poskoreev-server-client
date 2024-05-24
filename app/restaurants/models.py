@@ -15,14 +15,6 @@ class DeliveryZones(Model):
     is_active = fields.BooleanField(default=True)
 
 
-class Address(Model):
-    id = fields.IntField(pk=True)
-    street = fields.CharField(max_length=255, unique=True)
-    available = fields.BooleanField(default=True)
-    restaurant = fields.ForeignKeyField('models.Restaurant')
-    city = fields.ForeignKeyField('models.City')
-
-
 class Restaurant(Model):
     id = fields.IntField(pk=True)
     open = fields.TimeField(null=False)

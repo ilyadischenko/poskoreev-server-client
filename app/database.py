@@ -28,7 +28,6 @@ TORTOISE_ORM = {
                        ],
             "default_connection": "default",
         },
-        # "admin": {'models': ['app.restaurants.admin'], 'default_connection': "adminDB"},
     },
     "use_tz": False,
 }

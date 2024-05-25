@@ -53,7 +53,6 @@ class OrderPayType(Model):
 
 
 class OrderLog(Model):
-    order_id = fields.IntField()
     items = fields.JSONField(null=True)
     restaurant = fields.ForeignKeyField('models.Restaurant')
     user = fields.ForeignKeyField('models.User')

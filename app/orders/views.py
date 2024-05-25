@@ -65,27 +65,27 @@ async def check_active_orders(user_id: AuthGuard = Depends(auth)):
     return await get_active_orders(user_id)
 
 
-@orders_router.delete('/cancelOrder', tags=['Orders'])
-async def cancel_order(order_id: int, user_id: AuthGuard = Depends(auth)):
-    order = await Order.get_or_none(id=order_id, user_id=user_id)
-    if not order: raise HTTPException(status_code=404, detail={
-        'status': 501,
-        'message': "Этот заказ уже оформлен"
-    })
-    if not order.status: return "order isnt finished"
-    log = await OrderLog.get(order_id=order_id)
-    log.canceled_at = datetime.now(tz=timezone.utc)
-    log.status = 0
-    await log.save()
-    user = await User.get(id=user_id)
-    user.bonuses -= order.added_bonuses
-    await user.save()
-    if order.promocode_applied:
-        promocode = await PromoCode.get(short_name=order.promocode)
-        promocode.count += 1
-        await promocode.save()
-    # send_to_tg
-    await order.delete()
+# @orders_router.delete('/cancelOrder', tags=['Orders'])
+# async def cancel_order(order_id: int, user_id: AuthGuard = Depends(auth)):
+#     order = await Order.get_or_none(id=order_id, user_id=user_id)
+#     if not order: raise HTTPException(status_code=404, detail={
+#         'status': 501,
+#         'message': "Этот заказ уже оформлен"
+#     })
+#     if not order.status: return "order isnt finished"
+#     log = await OrderLog.get(order_id=order_id)
+#     log.canceled_at = datetime.now(tz=timezone.utc)
+#     log.status = 0
+#     await log.save()
+#     user = await User.get(id=user_id)
+#     user.bonuses -= order.added_bonuses
+#     await user.save()
+#     if order.promocode_applied:
+#         promocode = await PromoCode.get(short_name=order.promocode)
+#         promocode.count += 1
+#         await promocode.save()
+#     # send_to_tg
+#     await order.delete()
 
 
 @orders_router.post('/finishOrder', tags=['Orders'])
@@ -167,10 +167,9 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
         await promocode.save()
 
     user_number = order.user.number
-    print(user_number)
 
     saved_order = await OrderLog.create(
-        order_id=order.id,
+        # order_id=order.id,
         created_at = order.created_at,
         items = await GetOrderSnapshotInJSON(order, paytype),
         status=logstatus,

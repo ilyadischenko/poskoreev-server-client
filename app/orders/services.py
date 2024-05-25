@@ -109,7 +109,6 @@ async def GetOrderSnapshotInJSON(order, paytype):
                           'sum': item.sum,
                           'bonuses': item.bonuses})
     return {
-        'id': order.id,
         'user': order.user.id,
         'restaurant': order.restaurant.id,
         'address': {

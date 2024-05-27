@@ -96,7 +96,7 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
                        address: CookieCheckerAddress = Depends(CCA),
                        city_id: CookieCheckerCity = Depends(CCC),
                        restaurant_id: CookieCheckerRestaurant = Depends(CCR)):
-    order = await Order.get_or_none(id=order_id, user_id=user_id).prefetch_related( 'restaurant', 'user')
+    order = await Order.get_or_none(id=order_id, user_id=user_id).prefetch_related('restaurant', 'user')
     if not order: raise HTTPException(status_code=400, detail={
         'status': 501,
         'message': "Сначала нужно добавить что-нибудь в корзину"
@@ -169,8 +169,8 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
     user_number = order.user.number
     now = datetime.now(timezone.utc)
     saved_order = await OrderLog.create(
-        created_at = now,
-        items = await GetOrderSnapshotInJSON(order, paytype),
+        created_at=now,
+        items=await GetOrderSnapshotInJSON(order, paytype),
         status=logstatus,
         user_id=order.user_id,
         restaurant_id=order.restaurant_id
@@ -197,7 +197,8 @@ async def add_to_order(menu_id: int,
         'status': 205,
         'message': "Пожалуйста, выберите другой ресторан"
     })
-    menu_item = await Menu.get_or_none(id=menu_id, restaurant_id=restaurant_id, delivery=True).prefetch_related('product')
+    menu_item = await Menu.get_or_none(id=menu_id, restaurant_id=restaurant_id, delivery=True).prefetch_related(
+        'product')
     if not menu_item: raise HTTPException(status_code=400, detail={
         'status': 401,
         'message': "Продукт не найден"
@@ -247,7 +248,7 @@ async def add_to_order(menu_id: int,
 async def remove_from_cart(menu_id: int,
                            user_id: AuthGuard = Depends(auth),
                            order_id: CookieCheckerOrder = Depends(CCO),
-                            restaurant_id: CookieCheckerRestaurant = Depends(CCR),
+                           restaurant_id: CookieCheckerRestaurant = Depends(CCR),
                            ):
     order = await Order.get_or_none(id=order_id, user_id=user_id)
     if not order: raise HTTPException(status_code=400, detail="Nothing to remove from")

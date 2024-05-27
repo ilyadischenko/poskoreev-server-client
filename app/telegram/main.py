@@ -20,7 +20,7 @@ async def send_order_to_tg(order, user_number):
 
 async def send_access_call_message(usernumber):
     await bot.send_message('840481448', text=f'Пользователю: {usernumber}\n'
-                                             f'Отправлен звонок\n')
+                                             f'Отправлена смс\n')
 
 
 async def send_error_auth_message(usernumber, error_id):

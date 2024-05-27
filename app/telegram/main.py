@@ -51,3 +51,8 @@ async def send_error_auth_message(usernumber, error_id):
     await bot.send_message('840481448', text=f'Ошибка авторизации у: {usernumber}\n'
                                              f'{message}\n')
 
+async def send_error_sms_auth_message(usernumber, error):
+
+    await bot.send_message('840481448', text=f'Ошибка авторизации у: {usernumber}\n'
+                                             f'{error}\n')
+

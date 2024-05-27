@@ -167,10 +167,9 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
         await promocode.save()
 
     user_number = order.user.number
-
+    now = datetime.now(timezone.utc)
     saved_order = await OrderLog.create(
-        # order_id=order.id,
-        created_at = order.created_at,
+        created_at = now,
         items = await GetOrderSnapshotInJSON(order, paytype),
         status=logstatus,
         user_id=order.user_id,

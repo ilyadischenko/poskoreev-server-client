@@ -44,12 +44,15 @@ async def order_stream(request: Request, user_id: AuthGuard = Depends(auth)) -> 
 
 
 async def get_active_orders(user_id):
-    # today = datetime.now(timezone.utc) - timedelta(days=2)
+    today = datetime.now(timezone.utc) - timedelta(days=1)
+    print(today)
     active_orders = await OrderLog.filter(
-                                          Q(Q(status=0), Q(status=1), Q(status=2), Q(status=3), Q(status=4), Q(status=6),
+                                          Q(Q(status=0), Q(status=1), Q(status=2), Q(status=3),
+                                            # Q(status=4),
+                                            Q(status=6),
                                             join_type="OR"),
                                             user_id=user_id,
-                                            # created_at=today.strftime("%Y-%m-%d")
+                                            created_at__gt=today.strftime("%Y-%m-%d")
                                        ).prefetch_related('restaurant')
     response_list = []
     if not active_orders: return {"haveActiveOrders": False, "orders": response_list}

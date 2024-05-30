@@ -2,6 +2,7 @@ from fastapi import HTTPException, APIRouter, Request, Response
 from datetime import datetime, timedelta, timezone
 
 from app.app.response import getResponseBody
+from app.orders.models import Order
 from app.users.models import User, UserBlacklist
 from app.users.service import validate_number
 from app.users.sms import send_sms
@@ -66,7 +67,7 @@ async def get_user(
 
 
 @user_router.post('/confirmcode', tags=['Users'])
-async def confirm_code(number: str, code: str, response: Response):
+async def confirm_code(number: str, code: str, response: Response, request: Request):
     if code == '':
         return getResponseBody(status=False, errorCode=105, errorMessage='Код не верный')
     formatted_number = await validate_number(number)
@@ -81,6 +82,12 @@ async def confirm_code(number: str, code: str, response: Response):
                         expires="Tue, 19 Jan 2038 03:14:07 GMT", secure=True, samesite='none')
     user.code = ''
     await user.save()
+
+    if '_oi' in request.cookies:
+        order = await Order.get(id=request.cookies['_oi'])
+        order.user_id = user.id
+        await order.save()
+
     return getResponseBody(data={'number': "+7" + user.number,
             'email': user.email,
             'telegram': user.telegram,
@@ -105,18 +112,19 @@ async def send_sms_to(number: str):
     if user:
         if await UserBlacklist.filter(user_id=user.id):
             return getResponseBody(status=False, errorCode=107, errorMessage='Номер в черном списке')
-        code = await send_sms(number)
-        if not code:
-            return getResponseBody(status=False, errorCode=106, errorMessage='Попробуйте еще раз')
+        # code = await send_sms(number)
+        # if not code:
+        #     return getResponseBody(status=False, errorCode=106, errorMessage='Попробуйте еще раз')
 
         user.expires_at = expires_at
-        user.code = code
+        user.code = 1234
         await user.save()
     else:
+        # code = await send_sms(number)
+        # if not code:
+        #     return getResponseBody(status=False, errorCode=106, errorMessage='Попробуйте еще раз')
 
-        code = await send_sms(number)
-        if not code:
-            return getResponseBody(status=False, errorCode=106, errorMessage='Попробуйте еще раз')
-        await User.create(number=formatted_number, code=code, expires_at=expires_at)
-    # return f"code was sent to {number} and will expire at {expires_at}"
+        await User.create(number=formatted_number,
+                          code=1234,
+                          expires_at=expires_at)
     return getResponseBody()

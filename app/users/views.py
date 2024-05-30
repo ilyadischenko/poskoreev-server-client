@@ -5,7 +5,7 @@ from app.app.response import getResponseBody
 from app.orders.models import Order
 from app.users.models import User, UserBlacklist
 from app.users.service import validate_number
-from app.users.sms import send_sms
+# from app.users.sms import send_sms
 from app.auth.jwt_handler import generateJWT, decodeJWT
 
 user_router = APIRouter(

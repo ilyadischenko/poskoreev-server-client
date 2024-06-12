@@ -42,6 +42,7 @@ class CookieCheckerRestaurant:
 class CookieCheckerAddress:
     async def __call__(self, request: Request):
         if '_picked_address' not in request.cookies:
+
             raise HTTPException(status_code=200,
                                 detail=getResponseBody(status=False, errorCode=204,
                                                        errorMessage='Пожалуйста, выберите улицу')

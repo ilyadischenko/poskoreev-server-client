@@ -117,6 +117,7 @@ async def GetOrderSnapshotInJSON(order, paytype):
                           'size': item.menu.size,
                           'sum': item.sum,
                           'bonuses': item.bonuses})
+
     return {
         'user': order.user.id,
         'restaurant': order.restaurant.id,
@@ -138,6 +139,7 @@ async def GetOrderSnapshotInJSON(order, paytype):
         'product_count': order.products_count,
         'sum': order.sum,
         'paytype': paytype.name,
+        'payment_method': order.paytype.id if order is not None else None,
         'total_sum': order.sum if not order.total_sum else order.total_sum
     }
 
@@ -177,6 +179,7 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
             'message': '',
         }
     promocode = await PromoCode.get_or_none(short_name=short_promocode, is_active=True)
+
     if not promocode:
         order.total_sum = order.sum
         order.promocode_applied = False
@@ -191,6 +194,7 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
         }
 
     if promocode.restaurant_id is not None and promocode.restaurant_id != restaurant_id:
+        print('11223123  ', restaurant_id)
         order.total_sum = order.sum
         order.promocode_applied = False
         order.promocode = None

@@ -13,7 +13,7 @@ async def validate_number(phone_number):
         if (phone_number[0] == "+"):
             return phone_number[2::]
         return phone_number[1::]
-    raise HTTPException(status_code=400, detail={
+    raise HTTPException(status_code=200, detail={
                 'status': 103,
                 'message': "Не валидный номер"
             })
@@ -51,7 +51,7 @@ class NewAuthGuard:
         if not decoded_code:
             raise HTTPException(status_code=200, detail=getResponseBody(
                 status=False,
-                errorCode=102,
+                errorCode=101,
                 errorMessage='Для начала нужно авторизоваться'
             ))
 

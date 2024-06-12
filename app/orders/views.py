@@ -11,7 +11,7 @@ from app.orders.models import Order, CartItem, OrderLog, OrderPayType
 from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJSON, AddPromocode, validate_menu, \
     validate_promocode, check_order_payment_type, CookieCheckerOrder, CCO, GetOrderSnapshotInJSON
 from app.products.models import Menu
-from app.restaurants.models import Restaurant, RestaurantPayType
+from app.restaurants.models import Restaurant, RestaurantPayType, DeliveryZones
 from app.telegram.main import send_order_to_tg
 from app.users.models import User
 from app.promocodes.models import PromoCode
@@ -38,7 +38,12 @@ async def choose_payment_type(pay_type: int,
     if not opt: opt = await OrderPayType.create(order_id=order_id, restaurant_pay_type_id=rpt.id)
     opt.restaurant_pay_type_id = rpt.id
     await opt.save()
-    return {'id': rpt.pay_type.id}
+
+    order = await Order.get(id=order_id)
+    order.paytype = rpt
+    await order.save()
+
+    return getResponseBody(data={'id': rpt.pay_type.id})
 
 
 @orders_router.get('/getOrder', tags=['Orders'])
@@ -62,8 +67,8 @@ async def get_order(response: Response,
 
 
 @orders_router.get('/checkActiveOrders', tags=['Orders'])
-async def check_active_orders(user_id: AuthGuard = Depends(auth)):
-    return await get_active_orders(user_id)
+async def check_active_orders(user_id: NewAuthGuard = Depends(newAuth)):
+    return getResponseBody(data=await get_active_orders(user_id))
 
 
 @orders_router.post('/finishOrder', tags=['Orders'])
@@ -74,7 +79,7 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
                        address: CookieCheckerAddress = Depends(CCA),
                        city_id: CookieCheckerCity = Depends(CCC),
                        restaurant_id: CookieCheckerRestaurant = Depends(CCR)):
-    order = await Order.get_or_none(id=order_id, user_id=user_id).prefetch_related('restaurant', 'user')
+    order = await Order.get_or_none(id=order_id, user_id=user_id).prefetch_related('restaurant', 'user', 'paytype')
     if not order: return getResponseBody(
         status=False,
         errorCode=501,
@@ -91,13 +96,13 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
     #         'message': "Пожалуйста, сделаейте заказ еще раз"
     #     })
 
-    # street_query = await Address.get_or_none(id=street_id, available=True,
-    #                                          city_id=city_id,
-    #                                          restaurant_id=restaurant_id)
-    # if street_query is None: raise HTTPException(status_code=400, detail={
-    #     'status': 207,
-    #     'message': "К сожалению, мы сейчас не доставляем на этот адрес"
-    # })
+    zone = await DeliveryZones.get_or_none(id=address['zone_id'], is_active=True)
+    if zone is None: return getResponseBody(
+        status=False,
+        errorCode=207,
+        errorMessage='К сожалению, мы временно не доставляем к вам :('
+    )
+
     r = await Restaurant.get(id=restaurant_id, city_id=city_id)
     if not r: return getResponseBody(
         status=False,
@@ -131,7 +136,7 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
 
     await CalculateOrder(order)
 
-    if r.min_sum > order.sum: return getResponseBody(
+    if r.min_sum > order.total_sum: return getResponseBody(
         status=False,
         errorCode=212,
         errorMessage=f'Минимальная сумма доставки к вам - {r.min_sum}р'
@@ -159,15 +164,18 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
         await promocode.save()
 
     user_number = order.user.number
-
     saved_order = await OrderLog.create(
-        created_at=order.created_at,
+        created_at=datetime.now(timezone.utc),
         items=await GetOrderSnapshotInJSON(order, paytype),
         status=logstatus,
         user_id=order.user_id,
         restaurant_id=order.restaurant_id
     )
-    await send_order_to_tg(saved_order, user_number)
+
+    try:
+        await send_order_to_tg(saved_order, user_number)
+    except:
+        pass
 
     await order.delete()
     await CartItem.filter(order_id=order_id).delete()
@@ -304,7 +312,7 @@ async def add_promocode(promocode_short_name: str,
                         restaurant_id: CookieCheckerRestaurant = Depends(CCR),
                         address: CookieCheckerAddress = Depends(CCA)):
     order = await OrderCheckOrCreate(request.cookies, user_id, response, restaurant_id, address['address'])
-    promocode = await AddPromocode(order, promocode_short_name, user_id, restaurant_id)
+    promocode = await AddPromocode(order, promocode_short_name, restaurant_id,  user_id )
     await CalculateOrder(order)
     order = await GetOrderInJSON(order)
     return getResponseBody(data={
@@ -315,7 +323,7 @@ async def add_promocode(promocode_short_name: str,
 
 @orders_router.post('/removePromocode', tags=['Orders'])
 async def remove_promocode(
-        user_id: AuthGuard = Depends(auth),
+        user_id: GetDecodedUserIdOrNone = Depends(getUserId),
         order_id: CookieCheckerOrder = Depends(CCO),
         restaurant_id: CookieCheckerRestaurant = Depends(CCR),
 ):
@@ -327,10 +335,10 @@ async def remove_promocode(
 
     order.promocode = None
     await order.save()
-    promocode = await AddPromocode(order, order.promocode, user_id, restaurant_id)
+    promocode = await AddPromocode(order, order.promocode, restaurant_id, user_id)
     order = await GetOrderInJSON(order)
 
-    return {
+    return getResponseBody(data={
         'order': order,
         'promocode': promocode
-    }
+    })

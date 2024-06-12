@@ -28,7 +28,6 @@ TORTOISE_ORM = {
                        ],
             "default_connection": "default",
         },
-        # "admin": {'models': ['app.restaurants.admin'], 'default_connection': "adminDB"},
     },
     "use_tz": False,
 }
@@ -38,12 +37,9 @@ def init_db(app: FastAPI) -> None:
     register_tortoise(
         app,
         config=TORTOISE_ORM,
-        modules={"models": model_paths,
-                 # "adminDB": admin_model_paths
-                 },
+        modules={"models": model_paths},
         generate_schemas=True,
         add_exception_handlers=True,
     )
 
-# Tortoise.init_models(admin_model_paths, "admin")
 Tortoise.init_models(model_paths, "models")

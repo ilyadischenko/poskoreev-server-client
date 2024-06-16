@@ -117,7 +117,6 @@ async def GetOrderSnapshotInJSON(order, paytype):
                           'size': item.menu.size,
                           'sum': item.sum,
                           'bonuses': item.bonuses})
-
     return {
         'user': order.user.id,
         'restaurant': order.restaurant.id,
@@ -139,7 +138,6 @@ async def GetOrderSnapshotInJSON(order, paytype):
         'product_count': order.products_count,
         'sum': order.sum,
         'paytype': paytype.name,
-        'payment_method': order.paytype.id if order is not None else None,
         'total_sum': order.sum if not order.total_sum else order.total_sum
     }
 

@@ -39,10 +39,6 @@ async def choose_payment_type(pay_type: int,
     opt.restaurant_pay_type_id = rpt.id
     await opt.save()
 
-    order = await Order.get(id=order_id)
-    order.paytype = rpt
-    await order.save()
-
     return getResponseBody(data={'id': rpt.pay_type.id})
 
 
@@ -80,7 +76,7 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
                        city_id: CookieCheckerCity = Depends(CCC),
                        restaurant_id: CookieCheckerRestaurant = Depends(CCR)):
 
-    order = await Order.get_or_none(id=order_id, user_id=user_id).prefetch_related('restaurant', 'user', 'paytype')
+    order = await Order.get_or_none(id=order_id, user_id=user_id).prefetch_related('restaurant', 'user')
     if not order: return getResponseBody(
         status=False,
         errorCode=501,

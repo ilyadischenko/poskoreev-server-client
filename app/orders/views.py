@@ -79,12 +79,14 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
                        address: CookieCheckerAddress = Depends(CCA),
                        city_id: CookieCheckerCity = Depends(CCC),
                        restaurant_id: CookieCheckerRestaurant = Depends(CCR)):
+
     order = await Order.get_or_none(id=order_id, user_id=user_id).prefetch_related('restaurant', 'user', 'paytype')
     if not order: return getResponseBody(
         status=False,
         errorCode=501,
         errorMessage='Сначала нужно добавить что-нибудь в корзину'
     )
+
 
     paytype = await check_order_payment_type(order)
     await validate_menu(order)
@@ -164,6 +166,7 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
         await promocode.save()
 
     user_number = order.user.number
+
     saved_order = await OrderLog.create(
         created_at=datetime.now(timezone.utc),
         items=await GetOrderSnapshotInJSON(order, paytype),
@@ -193,6 +196,8 @@ async def add_to_order(menu_id: int,
                        address: CookieCheckerAddress = Depends(CCA),
                        city_id: CookieCheckerCity = Depends(CCC)):
     restaurant = await Restaurant.get_or_none(id=restaurant_id, city_id=city_id)
+
+
     if not restaurant: return getResponseBody(status=False, errorCode=205,
                                               errorMessage='Пожалуйста, выберите другой ресторан')
 
@@ -207,6 +212,7 @@ async def add_to_order(menu_id: int,
 
     if order.total_sum + menu_item.price > restaurant.max_sum: return getResponseBody(status=False, errorCode=213,
                                                                                       errorMessage='Достигнут лимит корзины')
+
 
     cart_item = await CartItem.get_or_none(menu_id=menu_id, order_id=order.id)
     if not cart_item:

@@ -20,9 +20,6 @@ async def get_products(request: Request):
     #     rid = request.cookies['_ri']
 
     deliveryzone = await DeliveryZones.get(id=delivery).values('restaurant_id')
-    print(deliveryzone['restaurant_id'])
-
-
 
     menu = await Menu.filter(restaurant_id=int(deliveryzone['restaurant_id'])).order_by('size').filter(visible=True, delivery=True).prefetch_related('product', 'category')
     products_dict = {}

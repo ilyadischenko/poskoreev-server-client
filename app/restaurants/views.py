@@ -6,7 +6,7 @@ from shapely.geometry.polygon import Polygon
 from app.app.jwtService import generateJWT, decodeJWT
 from app.app.response import getResponseBody, setResponseCookie
 from app.config import yandex_api_key
-from app.restaurants.models import Restaurant, Address, City, RestaurantPayType, DeliveryZones
+from app.restaurants.models import Restaurant, City, RestaurantPayType, DeliveryZones
 from app.restaurants.schemas import SetAdressSchema
 from app.restaurants.service import (time_with_tz, CookieCheckerRestaurant, CCR, CookieCheckerCity, CCC,
                                      CookieCheckerAddress, CCA)
@@ -134,7 +134,6 @@ async def setAddress(
             return getResponseBody(status=True)
 
     return getResponseBody(status=False, errorCode=216, errorMessage='К сожалению, мы сюда не доставляем :(')
-
 
 
 @restaurant_router.get('/paytypes', tags=['Restaurants'])

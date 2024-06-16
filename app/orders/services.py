@@ -178,6 +178,7 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
             'linked': False,
             'message': '',
         }
+    short_promocode = short_promocode.lower()
     promocode = await PromoCode.get_or_none(short_name=short_promocode, is_active=True)
 
     if not promocode:
@@ -192,9 +193,7 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
             'linked': False,
             'message': 'Такого промокода не существует',
         }
-
     if promocode.restaurant_id is not None and promocode.restaurant_id != restaurant_id:
-        print('11223123  ', restaurant_id)
         order.total_sum = order.sum
         order.promocode_applied = False
         order.promocode = None

@@ -33,6 +33,8 @@ class Order(Model):
     promocode_applied = fields.BooleanField(default=False)
     promocode_linked = fields.BooleanField(default=False)
 
+    paytype = fields.ForeignKeyField('models.RestaurantPayType', null=True)
+
     class Meta:
         table = "orders_processing"
 

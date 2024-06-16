@@ -1,10 +1,9 @@
-import requests
-from fastapi import HTTPException, APIRouter, Request, Response
+
+from fastapi import APIRouter, Request, Response
 from datetime import datetime, timedelta, timezone
 
 from app.app.response import getResponseBody
-from app.config import mts_token
-from app.telegram.main import send_error_auth_message, send_access_call_message, send_error_sms_auth_message
+from app.orders.models import Order
 from app.users.models import User, UserBlacklist
 from app.users.service import validate_number
 from app.users.sms import very_complex_function_to_generate_code, sendSMS
@@ -69,7 +68,7 @@ async def get_user(
 
 
 @user_router.post('/confirmcode', tags=['Users'])
-async def confirm_code(number: str, code: str, response: Response):
+async def confirm_code(number: str, code: str, request: Request, response: Response):
     if code == '':
         return getResponseBody(status=False, errorCode=105, errorMessage='Код не верный')
     formatted_number = await validate_number(number)
@@ -84,6 +83,16 @@ async def confirm_code(number: str, code: str, response: Response):
                         expires="Tue, 19 Jan 2038 03:14:07 GMT", secure=True, samesite='none')
     user.code = ''
     await user.save()
+
+    if '_oi' in request.cookies:
+        order = await Order.get_or_none(id=request.cookies['_oi'])
+        print(order)
+        if order is not None:
+            order.user = user
+            await order.save()
+
+
+
     return getResponseBody(data={'number': "+7" + user.number,
             'email': user.email,
             'telegram': user.telegram,
@@ -103,77 +112,25 @@ async def send_sms_to(number: str):
     formatted_number = await validate_number(number)
     user = await User.get_or_none(number=formatted_number)
     expires_at = datetime.now(tz=timezone.utc) + timedelta(minutes=10)
-    code = very_complex_function_to_generate_code()
+    #code = very_complex_function_to_generate_code()
+    code = 1234
     if user:
         if await UserBlacklist.filter(user_id=user.id):
             return getResponseBody(status=False, errorCode=107, errorMessage='Номер в черном списке')
-        await sendSMS('7' + formatted_number, code)
+
+        # await sendSMS('7' + formatted_number, code)
+
         user.expires_at = expires_at
         user.code = code
         await user.save()
+
         # await send_access_call_message('7' + formatted_number)
 
     else:
-        await sendSMS('7' + formatted_number, code)
+        #await sendSMS('7' + formatted_number, code)
         # await send_access_call_message('7' + formatted_number)
         await User.create(number=formatted_number, code=code, expires_at=expires_at)
 
     return getResponseBody()
 
-# @user_router.post('/loginSMS', tags=['Users'])
-# async def send_sms_to(number: str):
-#     formatted_number = await validate_number(number)
-#     user = await User.get_or_none(number=formatted_number)
-#     expires_at = datetime.now(tz=timezone.utc) + timedelta(minutes=10)
-#     if user:
-#         if await UserBlacklist.filter(user_id=user.id):
-#             return getResponseBody(status=False, errorCode=107, errorMessage='Номер в черном списке')
-#         code = await send_sms(number)
-#         if not code:
-#             return getResponseBody(status=False, errorCode=106, errorMessage='Произошла какая-то ошибка. Попробуйте немного позже')
-#
-#         # code = very_complex_function_to_generate_code()
-#         # r = requests.post(url='https://api.exolve.ru/messaging/v1/SendSMS',
-#         #                   headers={
-#         #                       'Authorization': f'Bearer {mts_token}'},
-#         #                   json={
-#         #                       "number": "79249083109",
-#         #                       "destination": '7' + str(formatted_number),
-#         #                       "text": f'Ваш код - {str(code)}',
-#         #                       # "template_resource_id": 136519
-#         #
-#         #                   })
-#         # if r.status_code != 200:
-#         #     await send_error_sms_auth_message('7' + str(formatted_number), str(r.json()))
-#         #     return getResponseBody(status=False, errorCode=106, errorMessage='Произошла какая-то ошибка. Попробуйте еще раз')
-#
-#         user.expires_at = expires_at
-#         user.code = code
-#         await user.save()
-#         await send_access_call_message('7' + formatted_number)
-#     else:
-#         code = await send_sms(number)
-#         if not code:
-#             return getResponseBody(status=False, errorCode=106,
-#                                    errorMessage='Произошла какая-то ошибка. Попробуйте немного позже')
-#         # code = very_complex_function_to_generate_code()
-#         # r = requests.post(url='https://api.exolve.ru/messaging/v1/SendSMS',
-#         #                   headers={
-#         #                       'Authorization': f'Bearer {mts_token}'},
-#         #                   json={
-#         #                       "number": "79249083109",
-#         #                       "destination": '7' + str(formatted_number),
-#         #                       "text": f'Ваш код - {str(code)}',
-#         #                       # "template_resource_id": 136519
-#         #
-#         #                   })
-#         # if r.status_code != 200:
-#         #     await send_error_sms_auth_message('7' + str(formatted_number), str(r.json()))
-#         #     return getResponseBody(status=False, errorCode=106,
-#         #                            errorMessage='Произошла какая-то ошибка. Попробуйте еще раз')
-#         await send_access_call_message('7' + formatted_number)
-#         await User.create(number=formatted_number, code=code, expires_at=expires_at)
-# # 79249083109
-# #     print(r.json())
-#
-#     return getResponseBody()
+

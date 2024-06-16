@@ -6,10 +6,11 @@ from fastapi import APIRouter, Request, Response, Depends
 from fastapi.responses import StreamingResponse
 from tortoise.expressions import Q
 
+from app.app.response import getResponseBody
 from app.orders.models import Order, OrderLog
 from app.restaurants.models import Restaurant
 from app.restaurants.service import datetime_with_tz
-from app.users.service import AuthGuard, auth
+from app.users.service import AuthGuard, auth, NewAuthGuard, newAuth
 
 # from app.orders.views import check_active_orders
 
@@ -20,14 +21,6 @@ orders_router = APIRouter(
 
 
 async def get_orders(user_id):
-    # print(request.cookies)
-    """
-    Generates random value between 0 and 100
-
-    :return: String containing current timestamp (YYYY-mm-dd HH:MM:SS) and randomly generated data.
-    """
-    # client_ip = request.client.host
-
     while True:
 
         json_data = json.dumps(await get_active_orders(user_id))
@@ -36,7 +29,7 @@ async def get_orders(user_id):
 
 
 @orders_router.get("/connecttoorderstream")
-async def order_stream(request: Request, user_id: AuthGuard = Depends(auth)) -> StreamingResponse:
+async def order_stream(request: Request, user_id: NewAuthGuard = Depends(newAuth)) -> StreamingResponse:
     response = StreamingResponse(get_orders(user_id), media_type="text/event-stream")
     response.headers["Cache-Control"] = "no-cache"
     response.headers["X-Accel-Buffering"] = "no"
@@ -53,6 +46,7 @@ async def get_active_orders(user_id):
                                             join_type="OR"),
                                             user_id=user_id,
                                             created_at__gt=today.strftime("%Y-%m-%d")
+
                                        ).prefetch_related('restaurant')
     response_list = []
     if not active_orders: return {"haveActiveOrders": False, "orders": response_list}

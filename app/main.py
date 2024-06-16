@@ -1,10 +1,13 @@
 import time
 
-from app.config import server_number
-from app.database import init_db
+
 from fastapi import Request, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.config import server_number
+from app.database import init_db
 
 from app.users.views import user_router
 from app.products.views import products_router
@@ -19,7 +22,7 @@ app = FastAPI(
 
 init_db(app)
 
-origins = ["http://localhost:3000", "https://poskoreev.ru"]
+origins = ["http://localhost:3000", "https://test.poissystem.ru"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -44,3 +47,8 @@ async def add_process_time_header(request: Request, call_next):
     response.headers["X-Process-Time"] = str(process_time)
     response.headers["Server-ID"] = str(server_number)
     return response
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request, exc):
+    return JSONResponse(exc.detail, status_code=exc.status_code)

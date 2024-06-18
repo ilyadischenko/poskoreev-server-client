@@ -3,6 +3,7 @@ order_sender_bot_key = '6774260671:AAFuqvwVvSsbtBpLXV_Q0Rp_3yGn676kBhU'
 
 
 # chanel_id = '-1002029468556' #prod
+
 chanel_id = '-1002229451798' #dev
 
 server_number = 1

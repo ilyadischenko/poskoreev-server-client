@@ -77,6 +77,7 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
                        restaurant_id: CookieCheckerRestaurant = Depends(CCR)):
 
     order = await Order.get_or_none(id=order_id, user_id=user_id).prefetch_related('restaurant', 'user')
+
     if not order: return getResponseBody(
         status=False,
         errorCode=501,

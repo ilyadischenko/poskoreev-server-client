@@ -38,6 +38,7 @@ async def order_stream(request: Request, user_id: NewAuthGuard = Depends(newAuth
 
 async def get_active_orders(user_id):
     today = datetime.now(timezone.utc) - timedelta(days=1)
+
     active_orders = await OrderLog.filter(
                                           Q(Q(status=0), Q(status=1), Q(status=2), Q(status=3),
                                             # Q(status=4),

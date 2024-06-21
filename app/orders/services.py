@@ -39,13 +39,10 @@ async def OrderCheckOrCreate(cookies, response, restaurant_id, address, user_id=
                                    user_id=user_id
                                    )
         response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
-    # if order.invalid_at <= datetime.now(tz=timezone.utc):
-    #     order = await Order.create(restaurant_id=restaurant_id, address=address, user_id=user_id,
-    #                                invalid_at=datetime.now(tz=timezone.utc) + timedelta(days=1))
-    #     # await OrderLog.create(order_id=order.id,
-    #     #                       user_id=user_id,
-    #     #                       restaurant_id=restaurant_id, created_at=datetime.now(tz=timezone.utc))
-    #     response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
+    if order.invalid_at <= datetime.now(tz=timezone.utc):
+        order = await Order.create(restaurant_id=restaurant_id, address=address, user_id=user_id,
+                                   invalid_at=datetime.now(tz=timezone.utc) + timedelta(days=1))
+        response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
     return order
 
 
@@ -105,7 +102,7 @@ async def GetOrderInJSON(order):
     }
 
 
-async def GetOrderSnapshotInJSON(order, paytype):
+async def GetOrderSnapshotInJSON(order, paytype, points):
     cart_list = []
     items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu').order_by('id')
     for item in items:
@@ -125,6 +122,7 @@ async def GetOrderSnapshotInJSON(order, paytype):
             'entrance': order.entrance,
             'floor': order.floor,
             'apartment': order.apartment,
+            'points': points
         },
         'promocode': {
             'promocode': order.promocode,

@@ -76,6 +76,8 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
                        city_id: CookieCheckerCity = Depends(CCC),
                        restaurant_id: CookieCheckerRestaurant = Depends(CCR)):
 
+    print(address)
+
     order = await Order.get_or_none(id=order_id, user_id=user_id).prefetch_related('restaurant', 'user')
 
     if not order: return getResponseBody(
@@ -164,9 +166,13 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
 
     user_number = order.user.number
 
+    points = {
+        'latitude': address['latitude'],
+        'longitude': address['longitude']
+    }
     saved_order = await OrderLog.create(
         created_at=datetime.now(timezone.utc),
-        items=await GetOrderSnapshotInJSON(order, paytype),
+        items=await GetOrderSnapshotInJSON(order, paytype, points),
         status=logstatus,
         user_id=order.user_id,
         restaurant_id=order.restaurant_id

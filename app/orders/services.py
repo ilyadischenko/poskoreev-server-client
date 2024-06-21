@@ -39,9 +39,10 @@ async def OrderCheckOrCreate(cookies, response, restaurant_id, address, user_id=
                                    user_id=user_id
                                    )
         response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
-    if order.invalid_at <= datetime.now(tz=timezone.utc):
+    tomorrow = datetime.now(tz=timezone.utc) - timedelta(days=1)
+    if order.created_at <= tomorrow:
         order = await Order.create(restaurant_id=restaurant_id, address=address, user_id=user_id,
-                                   invalid_at=datetime.now(tz=timezone.utc) + timedelta(days=1))
+                                   created_at=datetime.now(tz=timezone.utc))
         response.set_cookie('_oi', order.id, httponly=True, secure=True, samesite='none')
     return order
 

@@ -10,7 +10,7 @@ class User(Model):
     email = fields.CharField(max_length=255, unique=True, null=True)
     number = fields.CharField(unique=True, null=False, max_length=255)
     code = fields.CharField(max_length=255)
-    expires_at = fields.DatetimeField()
+    expires_at = fields.DatetimeField(null=True)
     telegram = fields.CharField(max_length=255, unique=True, null=True)
     promocodes = fields.ManyToManyField('models.PromoCode')
     bonuses = fields.IntField(default=0, ge=0)

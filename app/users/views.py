@@ -112,13 +112,12 @@ async def send_sms_to(number: str):
     formatted_number = await validate_number(number)
     user = await User.get_or_none(number=formatted_number)
     expires_at = datetime.now(tz=timezone.utc) + timedelta(minutes=10)
-    #code = very_complex_function_to_generate_code()
-    code = 1234
+    code = very_complex_function_to_generate_code()
     if user:
         if await UserBlacklist.filter(user_id=user.id):
             return getResponseBody(status=False, errorCode=107, errorMessage='Номер в черном списке')
 
-        # await sendSMS('7' + formatted_number, code)
+        await sendSMS('7' + formatted_number, code)
 
         user.expires_at = expires_at
         user.code = code
@@ -127,7 +126,7 @@ async def send_sms_to(number: str):
         # await send_access_call_message('7' + formatted_number)
 
     else:
-        #await sendSMS('7' + formatted_number, code)
+        await sendSMS('7' + formatted_number, code)
         # await send_access_call_message('7' + formatted_number)
         await User.create(number=formatted_number, code=code, expires_at=expires_at)
 

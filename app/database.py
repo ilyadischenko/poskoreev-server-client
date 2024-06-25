@@ -10,7 +10,6 @@ model_paths = ["app.users.models", "app.promocodes.models", "app.products.models
                "aerich.models"
                ]
 
-
 TORTOISE_ORM = {
 
     "connections": {
@@ -38,5 +37,6 @@ def init_db(app: FastAPI) -> None:
         generate_schemas=True,
         add_exception_handlers=True,
     )
+
 
 Tortoise.init_models(model_paths, "models")

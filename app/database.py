@@ -4,18 +4,19 @@ from tortoise import Tortoise
 from tortoise.contrib.fastapi import register_tortoise
 
 
+from app.config import DB_USER, DB_HOST, DB_PASS, DB_PORT, DB_NAME
+
+
+
 model_paths = ["app.users.models", "app.promocodes.models", "app.products.models", "app.restaurants.models",
                "app.orders.models",
                "aerich.models"
                ]
 
-
-
 TORTOISE_ORM = {
 
     "connections": {
         "default": f"postgres://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}",
-
     },
     "apps": {
         "models": {
@@ -38,5 +39,6 @@ def init_db(app: FastAPI) -> None:
         generate_schemas=True,
         add_exception_handlers=True,
     )
+
 
 Tortoise.init_models(model_paths, "models")

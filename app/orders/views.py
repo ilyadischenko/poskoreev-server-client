@@ -76,7 +76,6 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
                        city_id: CookieCheckerCity = Depends(CCC),
                        restaurant_id: CookieCheckerRestaurant = Depends(CCR)):
 
-    print(address)
 
     order = await Order.get_or_none(id=order_id, user_id=user_id).prefetch_related('restaurant', 'user')
 

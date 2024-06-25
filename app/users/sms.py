@@ -31,9 +31,15 @@ async def sendSMS(phoneNumber, code):
 
     r = requests.post('https://cp.redsms.ru/api/message', headers=headers, data=json.dumps(data)).json()
     if not r['success']:
-        await send_error_sms_auth_message(phoneNumber, str(r['errors']))
+        try:
+            await send_error_sms_auth_message(phoneNumber, str(r['errors']))
+        except:
+            pass
     else:
-        await send_access_call_message(phoneNumber)
+        try:
+            await send_access_call_message(phoneNumber)
+        except:
+            pass
 
 
 def very_complex_function_to_generate_code():

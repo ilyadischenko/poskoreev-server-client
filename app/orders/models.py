@@ -57,7 +57,7 @@ class OrderPayType(Model):
 class OrderLog(Model):
     items = fields.JSONField(null=True)
     restaurant = fields.ForeignKeyField('models.Restaurant')
-    user = fields.ForeignKeyField('models.User')
+    user = fields.ForeignKeyField('models.User', null=True)
     # 0 в процессе (принят)
     # 1 начали готовить
     # 2 приготовлен

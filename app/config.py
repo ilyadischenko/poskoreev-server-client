@@ -8,10 +8,10 @@ chanel_id = '-1002029468556' #prod
 server_number = 1
 
 
-DB_HOST = ''
+DB_HOST = '81.163.23.70'
 DB_PORT = 5432
-DB_NAME = ''
-DB_USER = ''
-DB_PASS = ''
+DB_NAME = 'main'
+DB_USER = 'ilyadischenko'
+DB_PASS = 'Barmaley13!'
 
 

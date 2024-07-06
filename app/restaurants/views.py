@@ -76,11 +76,6 @@ async def find_addres(
         data={'addresses': addressList, 'r': r.json()['response']['GeoObjectCollection']['featureMember']})
 
 
-@restaurant_router.get('/viewJWT', tags=['Restaurants'])
-async def viewJWT(request: Request):
-    cookie = request.cookies['_picked_address']
-    return decodeJWT(cookie)
-
 
 @restaurant_router.post('/setaddress', tags=['Restaurants'])
 async def setAddress(

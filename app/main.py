@@ -8,6 +8,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import server_number
 from app.database import init_db
+from app.telegram.main import send_message_to_me
 
 from app.users.views import user_router
 from app.products.views import products_router
@@ -52,3 +53,16 @@ async def add_process_time_header(request: Request, call_next):
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request, exc):
     return JSONResponse(exc.detail, status_code=exc.status_code)
+
+@app.middleware("http")
+async def catch_errors(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as e:
+        try:
+            await send_message_to_me(f'500 ошибка\n'
+                                     f'Роут: {request.url.path}\n'
+                                     f'Ошибка: {e}')
+        except:
+            pass
+        return JSONResponse(status_code=500, content={"message": "Нихуя"})

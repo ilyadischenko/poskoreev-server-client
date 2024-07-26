@@ -3,7 +3,7 @@ from fastapi import HTTPException, APIRouter, Request, Response, Depends
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 
-from app.app.jwtService import generateJWT, decodeJWT
+from app.app.jwtService import generateJWT
 from app.app.response import getResponseBody, setResponseCookie
 from app.config import yandex_api_key
 from app.restaurants.models import Restaurant, City, RestaurantPayType, DeliveryZones
@@ -18,7 +18,6 @@ restaurant_router = APIRouter(
 
 @restaurant_router.get('/getCities', tags=['Restaurants'])
 async def get_cities():
-    # add sort
     query = await City.all().values('id', 'name')
     query.sort(key=lambda i: i['name'])
     return query

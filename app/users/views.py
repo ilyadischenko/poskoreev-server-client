@@ -123,11 +123,9 @@ async def send_sms_to(number: str):
         user.code = code
         await user.save()
 
-        # await send_access_call_message('7' + formatted_number)
 
     else:
         await sendSMS('7' + formatted_number, code)
-        # await send_access_call_message('7' + formatted_number)
         await User.create(number=formatted_number, code=code, expires_at=expires_at)
 
     return getResponseBody()

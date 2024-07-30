@@ -14,14 +14,12 @@ async def get_products(request: Request):
         delivery = 1
     else:
         delivery = request.cookies['_delivery_zone']
-    # if '_ri' not in request.cookies:
-    #     rid = 1
-    # else:
-    #     rid = request.cookies['_ri']
 
     deliveryzone = await DeliveryZones.get(id=delivery).values('restaurant_id')
 
-    menu = await Menu.filter(restaurant_id=int(deliveryzone['restaurant_id'])).order_by('size').filter(visible=True, delivery=True).prefetch_related('product', 'category')
+    menu = await Menu.filter(restaurant_id=int(deliveryzone['restaurant_id'])).order_by('size').filter(visible=True,
+                                                                                                       delivery=True).prefetch_related(
+        'product', 'category')
     products_dict = {}
 
     for i in menu:
@@ -52,9 +50,25 @@ async def get_products(request: Request):
                 "bonuses": [i.bonuses],
                 "prices": [i.price],
                 "sizes": [i.size],
-                "units": [i.unit]
+                "units": [i.unit],
+                "priority": i.product.priority
             })
-    p=sorted(products_dict.values(), key=lambda x: x["priority"])
-    clean = [{k: v for k, v in product.items() if k != "priority"} for product in p]
-    return {"products": clean}
 
+    """Сортируем категории продуктов по возрастанию приоритета"""
+    sorted_products_dict = sorted(products_dict.values(), key=lambda x: x["priority"])
+    products_list = [{k: v for k, v in product.items() if k != "priority"} for product in sorted_products_dict]
+
+    result_list = []
+    for category in products_list:
+        """Сортируем продукты внутри каждой категории"""
+        sorted_products = sorted(category['items'], key=lambda x: x["priority"])
+
+        """Удаляем ключ приоритета для каждого продукта"""
+        for el in sorted_products:
+            del el['priority']
+
+        result_list.append({
+            'type': category['type'],
+            'items': sorted_products
+        })
+    return {"products": result_list}

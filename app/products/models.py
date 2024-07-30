@@ -7,6 +7,7 @@ class Product(Model):
     title = fields.CharField(max_length=255, null=False)
     description = fields.CharField(max_length=255, null=True)
     img = fields.CharField(max_length=255, null=True)
+    priority = fields.IntField(ge=1)
 
 
 class Menu(Model):

@@ -163,10 +163,15 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
         promocode.count -= 1
         await promocode.save()
 
+    points = {
+        'latitude': address['latitude'],
+        'longitude': address['longitude']
+    }
+
     user_number = order.user.number
     saved_order = await OrderLog.create(
         created_at=datetime.now(timezone.utc),
-        items=await GetOrderSnapshotInJSON(order, paytype),
+        items=await GetOrderSnapshotInJSON(order, paytype, points),
         status=logstatus,
         user_id=order.user_id,
         restaurant_id=order.restaurant_id

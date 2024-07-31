@@ -103,7 +103,7 @@ async def GetOrderInJSON(order):
     }
 
 
-async def GetOrderSnapshotInJSON(order, paytype):
+async def GetOrderSnapshotInJSON(order, paytype, points):
     cart_list = []
     items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu').order_by('id')
     for item in items:
@@ -123,7 +123,7 @@ async def GetOrderSnapshotInJSON(order, paytype):
             'entrance': order.entrance,
             'floor': order.floor,
             'apartment': order.apartment,
-            # 'points': points
+            'points': points
         },
         'promocode': {
             'promocode': order.promocode,

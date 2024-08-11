@@ -285,7 +285,7 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
             'effect': item
         }
 
-    if promocode.type == 2:
+    elif promocode.type == 2:
         total = round(order.sum * (1 - promocode.effect * 0.01), 0)
         if total >= 1:
             order.total_sum = total

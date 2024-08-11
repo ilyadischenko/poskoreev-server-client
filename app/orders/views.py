@@ -1,7 +1,7 @@
 import time
 from datetime import datetime, timezone
 
-from fastapi import HTTPException, APIRouter, Depends, Request, Response
+from fastapi import HTTPException, APIRouter, Depends, Request, Response, BackgroundTasks
 
 from app.app.jwtService import decodeJWT
 from app.app.response import getResponseBody
@@ -73,6 +73,7 @@ async def check_active_orders(user_id: NewAuthGuard = Depends(newAuth)):
 
 @orders_router.post('/finishOrder', tags=['Orders'])
 async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
+                        background_tasks: BackgroundTasks,
                        response: Response,
                        user_id: NewAuthGuard = Depends(newAuth),
                        order_id: CookieCheckerOrder = Depends(CCO),
@@ -178,9 +179,11 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
     )
 
     try:
-        await send_order_to_tg(saved_order, user_number)
+        background_tasks.add_task(send_order_to_tg, saved_order, order.user.number)
     except:
         pass
+
+
 
     await order.delete()
     await CartItem.filter(order_id=order_id).delete()

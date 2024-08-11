@@ -6,7 +6,7 @@ from fastapi import Request, Response, HTTPException
 from app.app.response import getResponseBody
 from app.orders.models import Order, OrderLog, CartItem, OrderPayType
 from app.restaurants.models import RestaurantPayType, PayType
-from app.promocodes.models import PromoCode
+from app.promocodes.models import PromoCode, PromocodeProduct
 from app.users.models import User
 
 
@@ -97,8 +97,6 @@ async def GetOrderInJSON(order):
         'bonuses': order.added_bonuses,
         'product_count': order.products_count,
         'sum': order.sum,
-        # 'promocode': order.promocode,
-        # 'valid': order.promocode_applied,
         'total_sum': order.sum if not order.total_sum else order.total_sum
     }
 
@@ -115,6 +113,17 @@ async def GetOrderSnapshotInJSON(order, paytype, points):
                           'size': item.menu.size,
                           'sum': item.sum,
                           'bonuses': item.bonuses})
+
+    promocode_type = 0
+    promocode_effect = 0
+    promocode_item = {}
+    if order.promocode is not None:
+        promocode = await PromoCode.get(short_name=order.promocode)
+        promocode_type = promocode.type
+        promocode_effect = promocode.effect
+        if promocode.type == 1:
+            promocode_item = await PromocodeProduct.get(id=promocode.effect).values('id', 'title',
+                                                                                    'img', 'description', 'price', 'unit', 'size')
     return {
         'user': order.user.id,
         'restaurant': order.restaurant.id,
@@ -128,7 +137,10 @@ async def GetOrderSnapshotInJSON(order, paytype, points):
         'promocode': {
             'promocode': order.promocode,
             'promocode_applied': order.promocode_applied,
-            'promocode_linked': order.promocode_linked
+            'promocode_linked': order.promocode_linked,
+            'type': promocode_type,
+            'effect': promocode_effect,
+            'item': promocode_item
         },
         'comment': order.comment,
         'type': order.type,
@@ -142,21 +154,21 @@ async def GetOrderSnapshotInJSON(order, paytype, points):
 
 
 async def validate_menu(order):
-    listt = []
+    """Функция проверяет что все позиции в меню не
+    находятся в стоп листе и отображаются на сайте"""
+
     items = await CartItem.filter(order_id=order.id).prefetch_related('product', 'menu')
     if not items: raise HTTPException(status_code=200, detail=getResponseBody(
         status=False,
         errorCode=504,
         errorMessage='Невозможно оформить пустой заказ'
     ))
-    print(items)
     for item in items:
         if not item.menu.in_stock or not item.menu.visible:
-            listt.append({'id': item.menu_id})
             raise HTTPException(status_code=200, detail=getResponseBody(
                 status=False,
                 errorCode=402,
-                errorMessage=f'К сожалению, {listt} сейчас на стопе :('
+                errorMessage=f'К сожалению, {item.product.title} {item.menu.size}{item.menu.unit} сейчас на стопе :('
             ))
     return
 
@@ -174,6 +186,8 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
             'applied': False,
             'linked': False,
             'message': '',
+            'type': 0,
+            'effect': ''
         }
     short_promocode = short_promocode.lower()
     promocode = await PromoCode.get_or_none(short_name=short_promocode, is_active=True)
@@ -189,6 +203,8 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
             'applied': False,
             'linked': False,
             'message': 'Такого промокода не существует',
+            'type': 0,
+            'effect': ''
         }
     if promocode.restaurant_id is not None and promocode.restaurant_id != restaurant_id:
         order.total_sum = order.sum
@@ -201,9 +217,11 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
             'applied': False,
             'linked': False,
             'message': 'Такого промокода не существует',
+            'type': 0,
+            'effect': ''
         }
 
-    # Проверка на привязку промокода юзеру если он не для всех
+    '''Проверка на привязку промокода юзеру если он не для всех'''
     if not promocode.for_all:
         user = await User.get(id=user_id).prefetch_related('promocodes')
         user_promocode = await user.promocodes.filter(id=promocode.id)
@@ -218,7 +236,10 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
                 'applied': False,
                 'linked': False,
                 'message': 'Такого промокода не существует',
+                'type': 0,
+                'effect': ''
             }
+
     if promocode.count == 0 or promocode.end_day < datetime.now(timezone.utc) or promocode.start_day > datetime.now(
             timezone.utc):
         order.total_sum = order.sum
@@ -231,6 +252,8 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
             'applied': False,
             'linked': False,
             'message': 'Промокод недействителен',
+            'type': 0,
+            'effect': ''
         }
     if promocode.min_sum > order.sum:
         order.total_sum = order.sum
@@ -243,6 +266,23 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
             'applied': False,
             'linked': True,
             'message': f'Минимальная сумма заказа для применения промокода {promocode.min_sum}р',
+            'type': 0,
+            'effect': ''
+        }
+    if promocode.type == 1:
+        item = await PromocodeProduct.get_or_none(id=promocode.effect)
+        order.total_sum = order.sum + item.price
+        order.promocode_applied = True
+        order.promocode_linked = True
+        order.promocode = short_promocode
+        await order.save()
+        return {
+            'promocode': short_promocode,
+            'applied': True,
+            'linked': True,
+            'message': 'Промокод применён и продукт добавлен в корзину',
+            'type': 1,
+            'effect': item
         }
 
     if promocode.type == 2:
@@ -258,6 +298,8 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
                 'applied': True,
                 'linked': True,
                 'message': 'Промокод применён',
+                'type': 2,
+                'effect': ''
             }
         else:
             order.total_sum = order.sum
@@ -269,7 +311,9 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
                 'promocode': short_promocode,
                 'applied': False,
                 'linked': True,
-                'message': 'Промокод не может понизить сумму заказа ниже одного рубля'
+                'message': 'Промокод не может понизить сумму заказа ниже одного рубля',
+                'type': 3,
+                'effect': ''
             }
     elif promocode.type == 3:
         total = order.sum - promocode.effect
@@ -284,6 +328,8 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
                 'applied': True,
                 'linked': True,
                 'message': 'Промокод применён',
+                'type': 0,
+                'effect': ''
             }
         else:
             order.total_sum = order.sum
@@ -295,7 +341,9 @@ async def AddPromocode(order, input_promocode, restaurant_id, user_id=0):
                 'promocode': short_promocode,
                 'applied': False,
                 'linked': True,
-                'message': 'Промокод не может понизить сумму заказа ниже одного рубля'
+                'message': 'Промокод не может понизить сумму заказа ниже одного рубля',
+                'type': 0,
+                'effect': ''
             }
 
 

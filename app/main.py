@@ -22,7 +22,7 @@ app = FastAPI(
 
 init_db(app)
 
-origins = ["http://localhost:3000", "https://test.poissystem.ru", "https://poskoreev.ru"]
+origins = ["http://localhost:3000", "https://test.poissystem.ru", "https://poskoreev.ru", "https://cashier.poissystem.ru",]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

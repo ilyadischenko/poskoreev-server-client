@@ -1,5 +1,6 @@
 from fastapi import HTTPException, APIRouter, Response, Request
 
+from app.app.response import getResponseBody
 from app.products.models import Product, Menu, ProductCategory
 from app.restaurants.models import DeliveryZones
 
@@ -71,4 +72,4 @@ async def get_products(request: Request):
             'type': category['type'],
             'items': sorted_products
         })
-    return {"products": result_list}
+    return getResponseBody(data={"products": result_list})

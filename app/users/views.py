@@ -3,6 +3,7 @@ from fastapi import APIRouter, Request, Response
 from datetime import datetime, timedelta, timezone
 
 from app.app.response import getResponseBody
+from app.config import isSendSMS, isGenerateCodeForSMS
 from app.orders.models import Order
 from app.users.models import User, UserBlacklist
 from app.users.service import validate_number
@@ -86,7 +87,6 @@ async def confirm_code(number: str, code: str, request: Request, response: Respo
 
     if '_oi' in request.cookies:
         order = await Order.get_or_none(id=request.cookies['_oi'])
-        print(order)
         if order is not None:
             order.user = user
             await order.save()
@@ -112,20 +112,26 @@ async def send_sms_to(number: str):
     formatted_number = await validate_number(number)
     user = await User.get_or_none(number=formatted_number)
     expires_at = datetime.now(tz=timezone.utc) + timedelta(minutes=10)
-    code = very_complex_function_to_generate_code()
-    # code = 1234
+
+    if isGenerateCodeForSMS:
+        code = very_complex_function_to_generate_code()
+    else:
+        code = 1234
+
     if user:
         if await UserBlacklist.filter(user_id=user.id):
             return getResponseBody(status=False, errorCode=107, errorMessage='Номер в черном списке')
 
-        await sendSMS('7' + formatted_number, code)
+        if isSendSMS:
+            await sendSMS('7' + formatted_number, code)
 
         user.expires_at = expires_at
         user.code = code
         await user.save()
 
     else:
-        await sendSMS('7' + formatted_number, code)
+        if isSendSMS:
+            await sendSMS('7' + formatted_number, code)
         await User.create(number=formatted_number, code=code, expires_at=expires_at)
 
     return getResponseBody()

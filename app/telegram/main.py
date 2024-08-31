@@ -1,14 +1,12 @@
 from aiogram import Bot, Dispatcher
 
-from app.config import order_sender_bot_key, chanel_id
+from app.config import order_sender_bot_key, production_chanel_id, developer_chanel_id, isSendNotificationsToProd
 from app.restaurants.service import datetime_with_tz
 
 TOKEN = order_sender_bot_key
-CHANEL_ID = chanel_id
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
-
 
 async def send_order_to_tg(order, user_number):
     def get_time_in_tz(time, tz):
@@ -22,6 +20,11 @@ async def send_order_to_tg(order, user_number):
         floor = f", этаж {order.items['address']['floor']}" if order.items['address']['floor'] != '' else ''
         apartment = f", кв {order.items['address']['apartment']}" if order.items['address']['apartment'] != '' else ''
         return f'{street}{entrance}{floor}{apartment}'
+
+    if isSendNotificationsToProd:
+        chanel_id = production_chanel_id
+    else:
+        chanel_id = developer_chanel_id
 
     await bot.send_message(chanel_id, text=f'Новый заказ!\n'
                                            f'{get_time_in_tz(order.created_at, "Europe/Moscow")}\n'

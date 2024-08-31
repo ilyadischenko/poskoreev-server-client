@@ -1,7 +1,6 @@
-isSendSMS = False
-isGenerateCodeForSMS = False
-isSendNotificationsToProd = False
-isUseProdDB = False
+isSendSMS = True
+isSendNotificationsToProd = True
+isUseProdDB = True
 
 
 yandex_api_key = '63d3de7f-a351-41c0-acbd-4d1f23b7ef86'
@@ -15,3 +14,8 @@ DB_PORT = 5432
 DB_NAME = 'main'
 DB_USER = 'ilyadischenko'
 DB_PASS = 'Barmaley13!'
+
+current_applications_versions = {
+    'web': 1,
+    'mobile': 1
+}

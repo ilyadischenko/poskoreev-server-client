@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, Response
 from datetime import datetime, timedelta, timezone
 
 from app.app.response import getResponseBody
-from app.config import isSendSMS, isGenerateCodeForSMS
+from app.config import isSendSMS
 from app.orders.models import Order
 from app.users.models import User, UserBlacklist
 from app.users.service import validate_number
@@ -113,7 +113,7 @@ async def send_sms_to(number: str):
     user = await User.get_or_none(number=formatted_number)
     expires_at = datetime.now(tz=timezone.utc) + timedelta(minutes=10)
 
-    if isGenerateCodeForSMS:
+    if isSendSMS:
         code = very_complex_function_to_generate_code()
     else:
         code = 1234

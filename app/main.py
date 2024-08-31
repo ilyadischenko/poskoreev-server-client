@@ -1,11 +1,11 @@
 import time
 
-
 from fastapi import Request, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.config import current_applications_versions
 from app.database import init_db
 from app.telegram.main import send_message_to_me
 
@@ -31,13 +31,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-
 app.include_router(user_router)
 app.include_router(products_router)
 app.include_router(orders_router)
 app.include_router(restaurant_router)
 app.include_router(orders_event_router)
+
 
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
@@ -52,6 +51,7 @@ async def add_process_time_header(request: Request, call_next):
 async def http_exception_handler(request, exc):
     return JSONResponse(exc.detail, status_code=exc.status_code)
 
+
 @app.middleware("http")
 async def catch_errors(request: Request, call_next):
     try:
@@ -64,3 +64,7 @@ async def catch_errors(request: Request, call_next):
         except:
             pass
         return JSONResponse(status_code=500, content={"message": "Нихуя"})
+
+@app.get('/api/v1/getCurrentVersions')
+async def get_current_versions():
+    return current_applications_versions

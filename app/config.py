@@ -16,6 +16,6 @@ DB_USER = 'ilyadischenko'
 DB_PASS = 'Barmaley13!'
 
 current_applications_versions = {
-    'web': 1.1,
+    'web': 1.2,
     'mobile': 1
 }

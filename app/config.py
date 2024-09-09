@@ -1,4 +1,4 @@
-isSendSMS = True
+isSendSMS = False
 isSendNotificationsToProd = True
 isUseProdDB = True
 

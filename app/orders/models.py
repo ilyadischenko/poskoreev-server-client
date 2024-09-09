@@ -23,12 +23,6 @@ class Order(Model):
     sum = fields.FloatField(ge=0, default=0)
     total_sum = fields.FloatField(ge=0, default=0)
 
-    address = fields.CharField(max_length=255, null=True)
-    entrance = fields.CharField(max_length=255, null=True)
-    floor = fields.CharField(max_length=255, null=True)
-    apartment = fields.CharField(max_length=255, null=True)
-    comment = fields.CharField(max_length=255, null=True)
-
     promocode = fields.CharField(null=True, max_length=255)
     promocode_applied = fields.BooleanField(default=False)
     promocode_linked = fields.BooleanField(default=False)

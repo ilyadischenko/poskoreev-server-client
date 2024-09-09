@@ -1,11 +1,8 @@
-import time
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, APIRouter, Depends, Request, Response, BackgroundTasks
 
-from app.app.jwtService import decodeJWT
 from app.app.response import getResponseBody
-# from app.auth.jwt_handler import decodeJWT
 from app.orders.eventSourcing import get_active_orders
 from app.orders.models import Order, CartItem, OrderLog, OrderPayType
 from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJSON, AddPromocode, validate_menu, \
@@ -13,9 +10,8 @@ from app.orders.services import OrderCheckOrCreate, CalculateOrder, GetOrderInJS
 from app.products.models import Menu
 from app.restaurants.models import Restaurant, RestaurantPayType, DeliveryZones
 from app.telegram.main import send_order_to_tg
-from app.users.models import User
 from app.promocodes.models import PromoCode
-from app.users.service import AuthGuard, auth, GetDecodedUserIdOrNone, getUserId, newAuth, NewAuthGuard
+from app.users.service import GetDecodedUserIdOrNone, getUserId, newAuth, NewAuthGuard
 from app.restaurants.service import CookieCheckerRestaurant, CCR, CookieCheckerCity, CCC, \
     CookieCheckerAddress, CCA
 
@@ -73,7 +69,7 @@ async def check_active_orders(user_id: NewAuthGuard = Depends(newAuth)):
 
 @orders_router.post('/finishOrder', tags=['Orders'])
 async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
-                        background_tasks: BackgroundTasks,
+                       background_tasks: BackgroundTasks,
                        response: Response,
                        user_id: NewAuthGuard = Depends(newAuth),
                        order_id: CookieCheckerOrder = Depends(CCO),
@@ -143,14 +139,7 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
         errorMessage=f'Минимальная сумма доставки к вам - {r.min_sum}р'
     )
 
-
     if order.promocode: await validate_promocode(order, order.promocode, user_id)
-
-    order.address = address['address']
-    order.comment = comment
-    order.entrance = entrance
-    order.apartment = appartment
-    order.floor = floor
 
     await order.save()
     if order.total_sum >= r.needs_validation_sum or order.sum >= r.max_sum:
@@ -164,15 +153,20 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
         promocode.count -= 1
         await promocode.save()
 
-    points = {
-        'latitude': address['latitude'],
-        'longitude': address['longitude']
+    addressInfo = {
+        'street': address['address'],
+        'entrance': entrance,
+        'floor': floor,
+        'apartment': appartment,
+        'points': {
+            'latitude': address['latitude'],
+            'longitude': address['longitude']
+        }
     }
 
-    # user_number = order.user.number
     saved_order = await OrderLog.create(
         created_at=datetime.now(timezone.utc),
-        items=await GetOrderSnapshotInJSON(order, paytype, points),
+        items=await GetOrderSnapshotInJSON(order=order, paytype=paytype, address=addressInfo, comment=comment),
         status=logstatus,
         user_id=order.user_id,
         restaurant_id=order.restaurant_id
@@ -182,8 +176,6 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
         background_tasks.add_task(send_order_to_tg, saved_order, order.user.number)
     except:
         pass
-
-
 
     await order.delete()
     await CartItem.filter(order_id=order_id).delete()
@@ -211,7 +203,7 @@ async def add_to_order(menu_id: int,
     if not menu_item.in_stock: return getResponseBody(status=False, errorCode=402, errorMessage='Продукт закончился')
 
     order = await OrderCheckOrCreate(cookies=request.cookies, response=response,
-                                     restaurant_id=restaurant_id, address=address['address'], user_id=user_id)
+                                     restaurant_id=restaurant_id, user_id=user_id)
 
     if order.total_sum + menu_item.price > restaurant.max_sum: return getResponseBody(status=False, errorCode=213,
                                                                                       errorMessage='Достигнут лимит корзины')
@@ -319,8 +311,8 @@ async def add_promocode(promocode_short_name: str,
                         user_id: GetDecodedUserIdOrNone = Depends(getUserId),
                         restaurant_id: CookieCheckerRestaurant = Depends(CCR),
                         address: CookieCheckerAddress = Depends(CCA)):
-    order = await OrderCheckOrCreate(request.cookies, user_id, response, restaurant_id, address['address'])
-    promocode = await AddPromocode(order, promocode_short_name, restaurant_id,  user_id )
+    order = await OrderCheckOrCreate(cookies=request.cookies, response=response, restaurant_id=restaurant_id, user_id=user_id)
+    promocode = await AddPromocode(order, promocode_short_name, restaurant_id, user_id)
     await CalculateOrder(order)
     order = await GetOrderInJSON(order)
     return getResponseBody(data={

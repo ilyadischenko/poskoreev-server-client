@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Request, Response
 from datetime import datetime, timedelta, timezone
 
@@ -29,9 +28,7 @@ async def get_user(
     telegram = ''
     promocodes = ''
     bonuses = ''
-    # active_orders = []
 
-    # decoded_code = None
     if '_at' not in request.cookies:
         is_auth = False
     else:
@@ -57,15 +54,14 @@ async def get_user(
         is_pick_street = False
 
     return getResponseBody(data={'number': number,
-            'email': email,
-            'telegram': telegram,
-            'promocodes': promocodes,
-            'bonuses': bonuses,
-            'is_auth': is_auth,
-            'pick_city': is_pick_city,
-            'pick_street': is_pick_street,
-            # 'active_orders': active_orders
-            })
+                                 'email': email,
+                                 'telegram': telegram,
+                                 'promocodes': promocodes,
+                                 'bonuses': bonuses,
+                                 'is_auth': is_auth,
+                                 'pick_city': is_pick_city,
+                                 'pick_street': is_pick_street,
+                                 })
 
 
 @user_router.post('/confirmcode', tags=['Users'])
@@ -91,13 +87,11 @@ async def confirm_code(number: str, code: str, request: Request, response: Respo
             order.user = user
             await order.save()
 
-
-
     return getResponseBody(data={'number': "+7" + user.number,
-            'email': user.email,
-            'telegram': user.telegram,
-            'promocodes': await user.get_all_promocodes(),
-            'bonuses': user.bonuses})
+                                 'email': user.email,
+                                 'telegram': user.telegram,
+                                 'promocodes': await user.get_all_promocodes(),
+                                 'bonuses': user.bonuses})
 
 
 @user_router.post('/exit', tags=['Users'])
@@ -135,5 +129,3 @@ async def send_sms_to(number: str):
         await User.create(number=formatted_number, code=code, expires_at=expires_at)
 
     return getResponseBody()
-
-

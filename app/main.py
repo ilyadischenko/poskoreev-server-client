@@ -63,7 +63,7 @@ async def catch_errors(request: Request, call_next):
                                      f'Ошибка: {e}')
         except:
             pass
-        return JSONResponse(status_code=500, content={"message": "Нихуя"})
+        return JSONResponse(status_code=500, content={"message": "Неизвестная ошибка"})
 
 @app.get('/api/v1/getCurrentVersions')
 async def get_current_versions():

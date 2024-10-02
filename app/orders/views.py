@@ -128,7 +128,8 @@ async def finish_order(comment: str, entrance: str, appartment: str, floor: str,
     if not r.delivery: return getResponseBody(
         status=False,
         errorCode=211,
-        errorMessage='К сожалению, этот ресторан не работает на доставку сейчас'
+        errorMessage='К сожалению, сейчас слишком много заказов, мы не можем принять ваш. '
+                     'Это делается для сохранения скорости доставки. Приносим извинения за доставленные неудобства :('
     )
 
     await CalculateOrder(order)
